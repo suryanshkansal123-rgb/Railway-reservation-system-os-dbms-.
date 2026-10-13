@@ -1,0 +1,62 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Railway Reservation System</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Railway Reservation System</h1>
+    <p>Search trains and book your journey</p>
+  </header>
+
+  <main>
+    <section class="panel">
+      <h2>Search Trains</h2>
+      <form id="search-form">
+        <label for="source">From</label>
+        <select id="source">
+          <option value="Dehradun">Dehradun</option>
+          <option value="Delhi">Delhi</option>
+        </select>
+
+        <label for="destination">To</label>
+        <select id="destination">
+          <option value="Delhi">Delhi</option>
+          <option value="Dehradun">Dehradun</option>
+        </select>
+
+        <button type="submit">Search Trains</button>
+      </form>
+      <p id="search-message" role="status"></p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Train</th>
+              <th>Route</th>
+              <th>Fare</th>
+              <th>Seats</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="train-list"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Booking History</h2>
+      <p id="booking-message" role="status"></p>
+      <div id="booking-list"></div>
+      <button id="refresh-bookings" type="button">
+        Refresh Bookings
+      </button>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,125 @@
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f3f6fb;
+  color: #1d2939;
+}
+
+header {
+  background: #123b68;
+  color: white;
+  text-align: center;
+  padding: 28px 16px;
+}
+
+header h1 {
+  margin: 0 0 8px;
+}
+
+header p {
+  margin: 0;
+}
+
+main {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 0 16px;
+}
+
+.panel {
+  background: white;
+  padding: 22px;
+  margin-bottom: 22px;
+  border-radius: 12px;
+  box-shadow: 0 3px 14px #172b4d12;
+}
+
+form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+label {
+  font-weight: bold;
+}
+
+select, button {
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+select {
+  border: 1px solid #ccd5e0;
+}
+
+button {
+  background: #1769aa;
+  color: white;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #104d80;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 16px;
+}
+
+th, td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e5eaf0;
+}
+
+th {
+  background: #edf3f9;
+}
+
+#search-message, #booking-message {
+  color: #475467;
+}
+
+.booking {
+  border: 1px solid #e1e7ef;
+  padding: 12px;
+  margin: 10px 0;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  form select, form button {
+    width: 100%;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+}
