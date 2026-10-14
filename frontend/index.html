@@ -4,59 +4,218 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Railway Reservation System</title>
+  <meta name="theme-color" content="#101c3a">
+  <meta name="description" content="RailEase railway reservation demo — search trains, explore fares and manage bookings.">
+  <title>RailEase | Railway Reservations</title>
   <link rel="stylesheet" href="style.css">
   <script src="script.js" defer></script>
 </head>
+
 <body>
-  <header>
-    <h1>Railway Reservation System</h1>
-    <p>Search trains and book your journey</p>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="RailEase home">
+      <span class="brand-icon" aria-hidden="true">🚆</span>
+      <span class="brand-name">RailEase<small>RAILWAY RESERVATION SYSTEM</small></span>
+    </a>
+
+    <nav class="navigation" aria-label="Main navigation">
+      <a href="#search-section">Find trains</a>
+      <a href="#results-section">Train results</a>
+      <a href="#bookings-section">My bookings</a>
+    </nav>
+
+    <span class="system-status">
+      <span class="status-dot"></span>
+      <span id="connection-label">Checking system...</span>
+    </span>
   </header>
 
   <main>
-    <section class="panel">
-      <h2>Search Trains</h2>
-      <form id="search-form">
-        <label for="source">From</label>
-        <select id="source">
-          <option value="Dehradun">Dehradun</option>
-          <option value="Delhi">Delhi</option>
-        </select>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">YOUR JOURNEY STARTS HERE</span>
+        <h1>Travel more.<br><span>Worry less.</span></h1>
+        <p>Discover available trains, compare ticket fares and manage your railway reservations in one place.</p>
 
-        <label for="destination">To</label>
-        <select id="destination">
-          <option value="Delhi">Delhi</option>
-          <option value="Dehradun">Dehradun</option>
-        </select>
+        <div class="hero-highlights">
+          <span>✓ Easy train search</span>
+          <span>✓ Simple reservations</span>
+          <span>✓ Booking history</span>
+        </div>
 
-        <button type="submit">Search Trains</button>
-      </form>
-      <p id="search-message" role="status"></p>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>Train</th>
-              <th>Route</th>
-              <th>Fare</th>
-              <th>Seats</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="train-list"></tbody>
-        </table>
+        <a href="#search-section" class="hero-cta">Plan your journey <span>↓</span></a>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="visual-orbit orbit-one"></div>
+        <div class="visual-orbit orbit-two"></div>
+        <div class="visual-sun"></div>
+        <div class="visual-train">🚆</div>
+        <div class="visual-route">YOUR NEXT STOP: ADVENTURE</div>
       </div>
     </section>
 
-    <section class="panel">
-      <h2>Booking History</h2>
-      <p id="booking-message" role="status"></p>
-      <div id="booking-list"></div>
-      <button id="refresh-bookings" type="button">
-        Refresh Bookings
-      </button>
+    <section class="search-panel panel" id="search-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">01 / PLAN YOUR TRIP</span>
+          <h2>Where are you headed?</h2>
+          <p>Enter your journey details to explore trains.</p>
+        </div>
+        <span class="section-icon" aria-hidden="true">⌕</span>
+      </div>
+
+      <form id="search-form">
+        <div class="form-field">
+          <label for="source">FROM STATION</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◉</span>
+            <select id="source" name="source" required>
+              <option value="Dehradun">Dehradun</option>
+              <option value="Delhi">Delhi</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" id="swap-stations" class="swap-button"
+                aria-label="Swap departure and destination stations"
+                title="Swap stations">⇄</button>
+
+        <div class="form-field">
+          <label for="destination">TO STATION</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◎</span>
+            <select id="destination" name="destination" required>
+              <option value="Delhi">Delhi</option>
+              <option value="Dehradun">Dehradun</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="journey-date">JOURNEY DATE</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">▦</span>
+            <input id="journey-date" name="journey-date"
+                   type="date" required>
+          </div>
+        </div>
+
+        <button type="submit" id="search-button" class="primary-button">
+          <span>Search trains</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </form>
+
+      <p id="search-message" class="message" role="status" aria-live="polite">
+        Choose your stations to get started.
+      </p>
     </section>
+
+    <section class="results-section" id="results-section">
+      <div class="section-heading results-heading">
+        <div>
+          <span class="eyebrow">02 / EXPLORE YOUR OPTIONS</span>
+          <h2>Available trains</h2>
+          <p>Compare train routes, fares and available seats.</p>
+        </div>
+        <span id="result-count" class="result-count">Waiting for search</span>
+      </div>
+
+      <div id="train-list" class="train-grid" aria-live="polite">
+        <div class="empty-state">
+          <span class="empty-illustration" aria-hidden="true">🚉</span>
+          <h3>Your next journey is one search away</h3>
+          <p>Select your departure and destination stations above.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel bookings-panel" id="bookings-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">03 / YOUR TRAVEL ACTIVITY</span>
+          <h2>Booking history</h2>
+          <p>View reservations recorded by your connected system.</p>
+        </div>
+        <button type="button" id="refresh-bookings" class="secondary-button">
+          <span aria-hidden="true">↻</span> Refresh
+        </button>
+      </div>
+
+      <p id="booking-message" class="message" role="status" aria-live="polite">
+        Loading booking history...
+      </p>
+
+      <div id="booking-list" class="booking-grid">
+        <div class="empty-state compact">
+          <p>Your booking history will appear here.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="info-strip">
+      <div class="info-item">
+        <span aria-hidden="true">🔎</span>
+        <div><strong>Find your train</strong><p>Search by station and route.</p></div>
+      </div>
+      <div class="info-item">
+        <span aria-hidden="true">🎟️</span>
+        <div><strong>Book with ease</strong><p>Enter passenger details to reserve.</p></div>
+      </div>
+      <div class="info-item">
+        <span aria-hidden="true">📋</span>
+        <div><strong>Track reservations</strong><p>Review saved bookings.</p></div>
+      </div>
+    </section>
+
+    <footer>
+      <a class="footer-brand" href="#">RailEase 🚆</a>
+      <p>Railway Reservation System · Academic project</p>
+      <small>Train availability and reservations depend on the connected project backend. This is not an official railway booking service.</small>
+    </footer>
   </main>
+
+  <dialog id="booking-dialog" class="booking-dialog" aria-labelledby="booking-title">
+    <form id="passenger-form" class="passenger-form">
+      <button type="button" id="close-booking" class="close-button"
+              aria-label="Close booking form">×</button>
+
+      <span class="eyebrow">COMPLETE YOUR RESERVATION</span>
+      <h2 id="booking-title">Passenger details</h2>
+      <p id="selected-train-summary" class="dialog-description">
+        Review your selected train.
+      </p>
+
+      <div class="selected-train-preview" id="selected-train-preview">
+        <span aria-hidden="true">🚆</span>
+        <div>
+          <strong id="selected-train-name">Selected train</strong>
+          <small id="selected-train-route">Journey route</small>
+        </div>
+        <strong id="selected-train-fare">₹—</strong>
+      </div>
+
+      <div class="form-field passenger-field">
+        <label for="passenger-name">PASSENGER FULL NAME</label>
+        <input id="passenger-name" name="passenger-name"
+               type="text" placeholder="Enter passenger name"
+               minlength="2" maxlength="100"
+               autocomplete="name" required>
+      </div>
+
+      <p class="form-note">
+        Your booking will be submitted to the project's connected backend.
+      </p>
+
+      <button type="submit" id="confirm-booking" class="primary-button">
+        Confirm booking <span aria-hidden="true">→</span>
+      </button>
+    </form>
+  </dialog>
+
+  <div id="toast-container" class="toast-container"
+       aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>
+```
