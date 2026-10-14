@@ -3,14 +3,13 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from threading import Lock
 
-app = Flask(__name__)
+from recommendation import calculate_recommendations
 
-# Allows a separately running frontend to call this API.
-# For local development only; restrict allowed origins for deployment.
+app = Flask(__name__)
 CORS(app)
 
 # Temporary sample data.
-# We will connect MySQL later.
+# MySQL integration can be added later.
 trains = [
     {
         "id": 1,
@@ -19,7 +18,9 @@ trains = [
         "source": "Dehradun",
         "destination": "Delhi",
         "fare": 500,
-        "seats": 10
+        "seats": 10,
+        "duration_minutes": 360,
+        "departure_time": "06:00"
     },
     {
         "id": 2,
@@ -28,7 +29,9 @@ trains = [
         "source": "Dehradun",
         "destination": "Delhi",
         "fare": 250,
-        "seats": 5
+        "seats": 5,
+        "duration_minutes": 360,
+        "departure_time": "06:00"
     },
     {
         "id": 3,
@@ -37,7 +40,9 @@ trains = [
         "source": "Delhi",
         "destination": "Dehradun",
         "fare": 400,
-        "seats": 8
+        "seats": 8,
+        "duration_minutes": 360,
+        "departure_time": "06:00"
     }
 ]
 
@@ -53,6 +58,13 @@ booking_lock = Lock()
 def home():
     return jsonify({
         "message": "Railway Reservation Backend is running",
+        "features": [
+            "Train search",
+            "Budget filtering",
+            "Weighted train recommendations",
+            "Seat booking",
+            "Booking history"
+        ],
         "endpoints": {
             "search_trains": "GET /api/trains",
             "create_booking": "POST /api/bookings",
@@ -61,41 +73,131 @@ def home():
     })
 
 
-# API 1: Search trains
+# API 1: Search and rank trains.
+#
 # Example:
-# GET /api/trains?source=Dehradun&destination=Delhi
+# /api/trains?source=Dehradun&destination=Delhi
+#
+# Optional parameters:
+# budget=500
+# price_weight=5
+# duration_weight=4
+# availability_weight=3
+# timing_weight=2
+# preferred_time=06:00
+
 @app.route("/api/trains", methods=["GET"])
 def search_trains():
     source = request.args.get("source", "").strip()
     destination = request.args.get("destination", "").strip()
 
-    results = trains
+    # Filter by route.
+    results = [
+        train for train in trains
+        if (
+            not source
+            or train["source"].casefold() == source.casefold()
+        )
+        and (
+            not destination
+            or train["destination"].casefold() == destination.casefold()
+        )
+    ]
 
-    if source:
+    # Optional maximum budget.
+    budget_value = request.args.get("budget", "").strip()
+
+    if budget_value:
+        try:
+            budget = float(budget_value)
+
+            if budget < 0:
+                raise ValueError
+
+        except ValueError:
+            return jsonify({
+                "error": "Budget must be a non-negative number"
+            }), 400
+
         results = [
             train for train in results
-            if train["source"].casefold() == source.casefold()
+            if train["fare"] <= budget
         ]
 
-    if destination:
-        results = [
-            train for train in results
-            if train["destination"].casefold() == destination.casefold()
-        ]
+    # Read passenger preference weights.
+    weight_parameters = {
+        "price": "price_weight",
+        "duration": "duration_weight",
+        "availability": "availability_weight",
+        "timing": "timing_weight"
+    }
+
+    default_weights = {
+        "price": 5,
+        "duration": 4,
+        "availability": 3,
+        "timing": 2
+    }
+
+    weights = {}
+
+    try:
+        for factor, parameter in weight_parameters.items():
+            raw_value = request.args.get(parameter)
+
+            if raw_value is None or raw_value.strip() == "":
+                weight = default_weights[factor]
+            else:
+                weight = int(raw_value)
+
+            if not 1 <= weight <= 5:
+                raise ValueError
+
+            weights[factor] = weight
+
+    except (ValueError, AttributeError):
+        return jsonify({
+            "error": "Each recommendation weight must be an integer from 1 to 5"
+        }), 400
+
+    preferred_time = request.args.get(
+        "preferred_time", ""
+    ).strip()
+
+    if preferred_time:
+        from datetime import datetime
+
+        try:
+            datetime.strptime(preferred_time, "%H:%M")
+        except ValueError:
+            return jsonify({
+                "error": "Preferred time must use HH:MM format"
+            }), 400
+
+    # Calculate scores and sort trains from best to worst.
+    ranked_trains = calculate_recommendations(
+        results,
+        weights=weights,
+        preferred_time=preferred_time or None
+    )
 
     return jsonify({
-        "count": len(results),
-        "trains": results
+        "count": len(ranked_trains),
+        "trains": ranked_trains,
+        "weights": weights,
+        "preferred_time": preferred_time or None
     })
 
 
-# API 2: Book a seat
+# API 2: Book a seat.
+#
 # POST /api/bookings
-# JSON body:
+# JSON:
 # {
 #   "train_id": 1,
 #   "passenger_name": "Test Passenger"
 # }
+
 @app.route("/api/bookings", methods=["POST"])
 def create_booking():
     global next_booking_id
@@ -110,12 +212,14 @@ def create_booking():
     passenger_name = data.get("passenger_name")
     train_id = data.get("train_id")
 
-    if not isinstance(passenger_name, str) or not passenger_name.strip():
+    if (
+        not isinstance(passenger_name, str)
+        or not passenger_name.strip()
+    ):
         return jsonify({
             "error": "Passenger name is required"
         }), 400
 
-    # Reject booleans, non-integer IDs and invalid IDs.
     if isinstance(train_id, bool) or not isinstance(train_id, int):
         return jsonify({
             "error": "train_id must be an integer"
@@ -123,7 +227,10 @@ def create_booking():
 
     with booking_lock:
         train = next(
-            (item for item in trains if item["id"] == train_id),
+            (
+                item for item in trains
+                if item["id"] == train_id
+            ),
             None
         )
 
@@ -137,8 +244,8 @@ def create_booking():
                 "error": "No seats available"
             }), 409
 
-        # Reserve one seat and record the booking
-        # together while holding the lock.
+        # Reserve a seat and create the booking atomically
+        # within this running Python process.
         train["seats"] -= 1
 
         booking = {
@@ -161,13 +268,14 @@ def create_booking():
         }), 201
 
 
-# API 3: View booking history
+# API 3: View booking history.
+
 @app.route("/api/bookings", methods=["GET"])
 def get_bookings():
     with booking_lock:
         return jsonify({
             "count": len(bookings),
-            "bookings": bookings
+            "bookings": list(bookings)
         })
 
 
