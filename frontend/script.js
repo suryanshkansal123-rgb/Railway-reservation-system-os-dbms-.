@@ -1,5 +1,9 @@
-// Railway Reservation System — Frontend JavaScript
-// Backend: Flask running at http://127.0.0.1:5000
+
+"use strict";
+
+// Railway Reservation System — RailEase Frontend
+// Flask backend: http://127.0.0.1:5000
+
 const API = "http://127.0.0.1:5000";
 const REQUEST_TIMEOUT = 10000;
 
@@ -9,6 +13,7 @@ const searchForm = document.getElementById("search-form");
 const sourceInput = document.getElementById("source");
 const destinationInput = document.getElementById("destination");
 const dateInput = document.getElementById("journey-date");
+const budgetInput = document.getElementById("budget");
 const swapButton = document.getElementById("swap-stations");
 const searchButton = document.getElementById("search-button");
 
@@ -41,6 +46,16 @@ const selectedTrainFare =
 
 const connectionLabel = document.getElementById("connection-label");
 const toastContainer = document.getElementById("toast-container");
+
+// Recommendation controls added to index.html
+const priceWeightInput = document.getElementById("priceWeight");
+const durationWeightInput = document.getElementById("durationWeight");
+const availabilityWeightInput =
+    document.getElementById("availabilityWeight");
+const timingWeightInput = document.getElementById("timingWeight");
+const preferredTimeInput = document.getElementById("preferredTime");
+const resetPreferencesButton =
+    document.getElementById("reset-preferences");
 
 // ---------- Application state ----------
 
@@ -93,10 +108,7 @@ function showToast(message, type = "info") {
     toast.setAttribute("role", "status");
     toastContainer.appendChild(toast);
 
-    // Remove the notification after a few seconds.
-    window.setTimeout(() => {
-        toast.remove();
-    }, 4000);
+    window.setTimeout(() => toast.remove(), 4000);
 }
 
 function setConnectionStatus(connected, message) {
@@ -104,19 +116,11 @@ function setConnectionStatus(connected, message) {
 
     connectionLabel.textContent = message;
 
-    const statusContainer =
-        connectionLabel.closest(".system-status");
+    const container = connectionLabel.closest(".system-status");
 
-    if (statusContainer) {
-        statusContainer.classList.toggle(
-            "is-connected",
-            connected
-        );
-
-        statusContainer.classList.toggle(
-            "is-disconnected",
-            !connected
-        );
+    if (container) {
+        container.classList.toggle("is-connected", connected);
+        container.classList.toggle("is-disconnected", !connected);
     }
 }
 
@@ -125,18 +129,16 @@ function setSearchLoading(isLoading) {
 
     searchButton.disabled = isLoading;
 
-    const buttonText = searchButton.querySelector(
-        "[data-button-text]"
-    );
+    const buttonText = searchButton.querySelector("[data-button-text]");
 
     if (buttonText) {
         buttonText.textContent = isLoading
             ? "Searching..."
-            : "Search Trains";
+            : "Search trains";
     } else {
         searchButton.textContent = isLoading
             ? "Searching..."
-            : "Search Trains";
+            : "Search trains →";
     }
 }
 
@@ -145,7 +147,7 @@ function setBookingLoading(isLoading) {
         confirmBookingButton.disabled = isLoading;
         confirmBookingButton.textContent = isLoading
             ? "Booking..."
-            : "Confirm Booking";
+            : "Confirm booking →";
     }
 }
 
@@ -154,9 +156,10 @@ function setBookingLoading(isLoading) {
 async function apiRequest(path, options = {}) {
     const controller = new AbortController();
 
-    const timeoutId = window.setTimeout(() => {
-        controller.abort();
-    }, REQUEST_TIMEOUT);
+    const timeoutId = window.setTimeout(
+        () => controller.abort(),
+        REQUEST_TIMEOUT
+    );
 
     try {
         const response = await fetch(`${API}${path}`, {
@@ -179,7 +182,7 @@ async function apiRequest(path, options = {}) {
                 data = JSON.parse(responseText);
             } catch {
                 throw new Error(
-                    "The server returned an invalid response. Check the Flask backend."
+                    "The server returned an invalid response. Check Flask."
                 );
             }
         }
@@ -196,13 +199,13 @@ async function apiRequest(path, options = {}) {
     } catch (error) {
         if (error.name === "AbortError") {
             throw new Error(
-                "The request took too long. Check whether the backend is running."
+                "Request timed out. Check whether Flask is running."
             );
         }
 
         if (error instanceof TypeError) {
             throw new Error(
-                "Cannot connect to the backend. Start your Flask server and check the API address."
+                "Cannot connect to Flask. Check the backend server and API address."
             );
         }
 
@@ -210,6 +213,75 @@ async function apiRequest(path, options = {}) {
     } finally {
         window.clearTimeout(timeoutId);
     }
+}
+
+// ---------- Recommendation preferences ----------
+
+function getWeight(input, defaultValue) {
+    if (!input) return defaultValue;
+
+    const value = Number(input.value);
+
+    if (!Number.isInteger(value) || value < 1 || value > 5) {
+        return defaultValue;
+    }
+
+    return value;
+}
+
+function updateWeightOutput(inputId, outputId) {
+    const input = document.getElementById(inputId);
+    const output = document.getElementById(outputId);
+
+    if (!input || !output) return;
+
+    const update = () => {
+        output.textContent = `${input.value} / 5`;
+    };
+
+    input.addEventListener("input", update);
+    update();
+}
+
+function getRecommendationPreferences() {
+    return {
+        price_weight: getWeight(priceWeightInput, 5),
+        duration_weight: getWeight(durationWeightInput, 4),
+        availability_weight: getWeight(availabilityWeightInput, 3),
+        timing_weight: getWeight(timingWeightInput, 2),
+        preferred_time: preferredTimeInput?.value || ""
+    };
+}
+
+function resetPreferences() {
+    const defaults = [
+        [priceWeightInput, 5],
+        [durationWeightInput, 4],
+        [availabilityWeightInput, 3],
+        [timingWeightInput, 2]
+    ];
+
+    defaults.forEach(([input, value]) => {
+        if (input) {
+            input.value = value;
+            input.dispatchEvent(new Event("input"));
+        }
+    });
+
+    if (preferredTimeInput) {
+        preferredTimeInput.value = "08:00";
+    }
+
+    showToast("Recommendation preferences reset.", "info");
+}
+
+updateWeightOutput("priceWeight", "priceValue");
+updateWeightOutput("durationWeight", "durationValue");
+updateWeightOutput("availabilityWeight", "availabilityValue");
+updateWeightOutput("timingWeight", "timingValue");
+
+if (resetPreferencesButton) {
+    resetPreferencesButton.addEventListener("click", resetPreferences);
 }
 
 // ---------- Train search ----------
@@ -221,51 +293,118 @@ function clearTrainResults(message = "") {
         resultCount.textContent = "0 trains";
     }
 
-    if (message) {
+    if (message && searchMessage) {
         searchMessage.textContent = message;
     }
 }
 
-function createTrainCard(train) {
+function createScoreBreakdown(train) {
+    const scores = train.component_scores;
+
+    if (!scores || typeof scores !== "object") {
+        return null;
+    }
+
+    const wrapper = makeElement("div", "score-breakdown");
+    wrapper.appendChild(makeElement("strong", "", "Score breakdown"));
+
+    const labels = {
+        price: "Price",
+        duration: "Duration",
+        availability: "Seat availability",
+        timing: "Departure timing"
+    };
+
+    Object.entries(labels).forEach(([key, label]) => {
+        const value = Number(scores[key]);
+
+        if (!Number.isFinite(value)) return;
+
+        const item = makeElement("div", "score-item");
+
+        const heading = makeElement("div", "score-item-heading");
+        heading.appendChild(makeElement("span", "", label));
+        heading.appendChild(
+            makeElement("span", "", `${value.toFixed(1)} / 100`)
+        );
+
+        const bar = makeElement("div", "score-bar");
+        const fill = makeElement("div", "score-bar-fill");
+
+        fill.style.width = `${Math.max(0, Math.min(100, value))}%`;
+
+        bar.appendChild(fill);
+        item.appendChild(heading);
+        item.appendChild(bar);
+        wrapper.appendChild(item);
+    });
+
+    return wrapper;
+}
+
+function createTrainCard(train, index) {
     const card = makeElement("article", "train-card");
 
+    // Train name and fare
     const top = makeElement("div", "train-card-top");
     const identity = makeElement("div", "train-identity");
 
     identity.appendChild(
-        makeElement(
-            "span",
-            "train-number",
-            `Train ${train.number ?? "—"}`
-        )
+        makeElement("span", "train-number", `Train ${train.number ?? "—"}`)
     );
 
     identity.appendChild(
-        makeElement(
-            "h3",
-            "train-name",
-            train.name || "Unnamed train"
-        )
+        makeElement("h3", "train-name", train.name || "Unnamed train")
     );
 
     top.appendChild(identity);
 
     top.appendChild(
-        makeElement(
-            "span",
-            "train-fare",
-            formatMoney(train.fare)
-        )
+        makeElement("span", "train-fare", formatMoney(train.fare))
     );
 
     card.appendChild(top);
 
+    // Recommendation score
+    const score = Number(train.recommendation_score);
+
+    if (Number.isFinite(score)) {
+        const scorePanel = makeElement("div", "recommendation-score");
+
+        const scoreHeading = makeElement("div", "recommendation-score-heading");
+
+        scoreHeading.appendChild(
+            makeElement(
+                "span",
+                "recommendation-label",
+                index === 0 ? "Top recommendation" : "Recommendation score"
+            )
+        );
+
+        scoreHeading.appendChild(
+            makeElement(
+                "strong",
+                "recommendation-value",
+                `${score.toFixed(2)} / 100`
+            )
+        );
+
+        const scoreBar = makeElement("div", "score-bar");
+        const scoreFill = makeElement("div", "score-bar-fill");
+
+        scoreFill.style.width = `${Math.max(0, Math.min(100, score))}%`;
+
+        scoreBar.appendChild(scoreFill);
+        scorePanel.appendChild(scoreHeading);
+        scorePanel.appendChild(scoreBar);
+        card.appendChild(scorePanel);
+    }
+
+    // Route
     const route = makeElement("div", "train-route");
 
     const source = makeElement("div", "route-station");
-    source.appendChild(
-        makeElement("span", "route-label", "FROM")
-    );
+    source.appendChild(makeElement("span", "route-label", "FROM"));
     source.appendChild(
         makeElement("strong", "route-city", train.source || "—")
     );
@@ -276,15 +415,9 @@ function createTrainCard(train) {
     routeLine.appendChild(makeElement("span", "route-line-dot"));
 
     const destination = makeElement("div", "route-station route-end");
+    destination.appendChild(makeElement("span", "route-label", "TO"));
     destination.appendChild(
-        makeElement("span", "route-label", "TO")
-    );
-    destination.appendChild(
-        makeElement(
-            "strong",
-            "route-city",
-            train.destination || "—"
-        )
+        makeElement("strong", "route-city", train.destination || "—")
     );
 
     route.appendChild(source);
@@ -293,14 +426,40 @@ function createTrainCard(train) {
 
     card.appendChild(route);
 
-    const bottom = makeElement("div", "train-card-bottom");
+    // Duration, departure time, seats
+    const details = makeElement("div", "train-details");
+
+    const duration = Number(train.duration_minutes);
+
+    if (Number.isFinite(duration)) {
+        const hours = Math.floor(duration / 60);
+        const minutes = duration % 60;
+
+        details.appendChild(
+            makeElement(
+                "span",
+                "train-detail",
+                `Journey: ${hours}h ${minutes}m`
+            )
+        );
+    }
+
+    if (train.departure_time) {
+        details.appendChild(
+            makeElement(
+                "span",
+                "train-detail",
+                `Departure: ${train.departure_time}`
+            )
+        );
+    }
 
     const seats = Number(train.seats);
     const seatsText = Number.isFinite(seats)
         ? `${seats} seat${seats === 1 ? "" : "s"} available`
         : "Seat count unavailable";
 
-    bottom.appendChild(
+    details.appendChild(
         makeElement(
             "span",
             Number.isFinite(seats) && seats > 0
@@ -310,12 +469,27 @@ function createTrainCard(train) {
         )
     );
 
-    const bookButton = makeElement(
-        "button",
-        "book-button",
-        "Book Ticket"
-    );
+    card.appendChild(details);
 
+    // Optional score explanation
+    const breakdown = createScoreBreakdown(train);
+
+    if (breakdown) {
+        const disclosure = document.createElement("details");
+        disclosure.className = "score-disclosure";
+
+        const summary = document.createElement("summary");
+        summary.textContent = "Why this score?";
+
+        disclosure.appendChild(summary);
+        disclosure.appendChild(breakdown);
+        card.appendChild(disclosure);
+    }
+
+    // Booking button
+    const bottom = makeElement("div", "train-card-bottom");
+
+    const bookButton = makeElement("button", "book-button", "Book Ticket");
     bookButton.type = "button";
     bookButton.disabled =
         !Number.isFinite(seats) ||
@@ -323,9 +497,7 @@ function createTrainCard(train) {
         train.id === undefined ||
         train.id === null;
 
-    bookButton.addEventListener("click", () => {
-        openBookingDialog(train);
-    });
+    bookButton.addEventListener("click", () => openBookingDialog(train));
 
     bottom.appendChild(bookButton);
     card.appendChild(bottom);
@@ -341,6 +513,7 @@ async function searchTrains(event) {
     const thisSearch = ++searchNumber;
     const source = sourceInput.value;
     const destination = destinationInput.value;
+    const budgetText = budgetInput?.value.trim() || "";
 
     if (!source || !destination) {
         clearTrainResults("Please select both stations.");
@@ -355,28 +528,39 @@ async function searchTrains(event) {
         return;
     }
 
+    if (budgetText !== "") {
+        const budget = Number(budgetText);
+
+        if (!Number.isFinite(budget) || budget < 0) {
+            clearTrainResults("Please enter a valid non-negative budget.");
+            return;
+        }
+    }
+
     setSearchLoading(true);
     clearTrainResults();
-    searchMessage.textContent = "Finding trains for your route...";
+    searchMessage.textContent = "Finding and ranking trains...";
 
     try {
         const query = new URLSearchParams({
             source,
-            destination
+            destination,
+            ...getRecommendationPreferences()
         });
 
-        // The current backend endpoint accepts source and destination.
-        // The selected date is not sent because the existing API
-        // does not currently support date-based filtering.
+        if (budgetText !== "") {
+            query.set("budget", budgetText);
+        }
+
+        // Note: journey-date is not sent as a filter because
+        // the current Flask backend does not implement date filtering.
         const data = await apiRequest(`/api/trains?${query.toString()}`);
 
-        // Ignore old responses if the user searches again.
+        // Ignore outdated responses from earlier searches.
         if (thisSearch !== searchNumber) return;
 
         if (!Array.isArray(data.trains)) {
-            throw new Error(
-                "The trains response has an unexpected format."
-            );
+            throw new Error("The trains response has an unexpected format.");
         }
 
         currentTrains = data.trains;
@@ -388,29 +572,35 @@ async function searchTrains(event) {
 
         if (currentTrains.length === 0) {
             searchMessage.textContent =
-                "No trains were found for this route in the current database.";
+                "No trains match your selected route and budget.";
 
-            const empty = makeElement(
-                "div",
-                "empty-state",
-                "Try another route or check the trains stored in your database."
+            trainList.appendChild(
+                makeElement(
+                    "div",
+                    "empty-state",
+                    "Try a different route or increase your budget."
+                )
             );
 
-            trainList.appendChild(empty);
             setConnectionStatus(true, "Backend connected");
             return;
         }
 
         const fragment = document.createDocumentFragment();
 
-        currentTrains.forEach(train => {
-            fragment.appendChild(createTrainCard(train));
+        currentTrains.forEach((train, index) => {
+            fragment.appendChild(createTrainCard(train, index));
         });
 
         trainList.appendChild(fragment);
 
-        searchMessage.textContent =
-            `Showing ${currentTrains.length} train${currentTrains.length === 1 ? "" : "s"} for ${source} to ${destination}.`;
+        const allScored = currentTrains.every(
+            train => Number.isFinite(Number(train.recommendation_score))
+        );
+
+        searchMessage.textContent = allScored
+            ? `Showing ${currentTrains.length} ranked train(s) from ${source} to ${destination}.`
+            : `Showing ${currentTrains.length} train(s). The backend has not returned recommendation scores yet.`;
 
         setConnectionStatus(true, "Backend connected");
     } catch (error) {
@@ -419,6 +609,7 @@ async function searchTrains(event) {
         currentTrains = [];
         clearTrainResults(error.message);
         setConnectionStatus(false, "Backend unavailable");
+        showToast(error.message, "error");
     } finally {
         if (thisSearch === searchNumber) {
             setSearchLoading(false);
@@ -498,7 +689,6 @@ if (closeBookingButton) {
 
 if (bookingDialog) {
     bookingDialog.addEventListener("click", event => {
-        // Close when the user clicks the dark area outside the dialog.
         if (event.target === bookingDialog) {
             closeBookingDialog();
         }
@@ -511,9 +701,9 @@ if (passengerForm) {
 
         const passengerName = passengerNameInput.value.trim();
 
-        if (!passengerName) {
+        if (passengerName.length < 2) {
             passengerNameInput.setCustomValidity(
-                "Please enter the passenger name."
+                "Please enter at least two characters for the passenger name."
             );
             passengerNameInput.reportValidity();
             return;
@@ -552,7 +742,7 @@ async function submitBooking(passengerName) {
             "success"
         );
 
-        // Refresh the seat count and booking history after booking.
+        // Refresh train seats and booking history.
         await Promise.allSettled([
             searchTrains(),
             loadBookings()
@@ -568,7 +758,6 @@ async function submitBooking(passengerName) {
 
 function renderBooking(booking) {
     const card = makeElement("article", "booking-card");
-
     const heading = makeElement("div", "booking-card-heading");
 
     heading.appendChild(
@@ -627,6 +816,8 @@ function renderBooking(booking) {
 }
 
 async function loadBookings() {
+    if (!bookingMessage || !bookingList) return;
+
     bookingMessage.textContent = "Loading booking history...";
     bookingList.replaceChildren();
 
@@ -638,9 +829,7 @@ async function loadBookings() {
         const data = await apiRequest("/api/bookings");
 
         if (!Array.isArray(data.bookings)) {
-            throw new Error(
-                "The bookings response has an unexpected format."
-            );
+            throw new Error("The bookings response has an unexpected format.");
         }
 
         if (data.bookings.length === 0) {
@@ -682,10 +871,11 @@ async function loadBookings() {
     }
 }
 
-// ---------- Set a default journey date ----------
+// ---------- Default journey date ----------
 
 if (dateInput) {
     const today = new Date();
+
     const localToday = [
         today.getFullYear(),
         String(today.getMonth() + 1).padStart(2, "0"),
@@ -701,7 +891,9 @@ if (dateInput) {
 
 // ---------- Connect events ----------
 
-searchForm.addEventListener("submit", searchTrains);
+if (searchForm) {
+    searchForm.addEventListener("submit", searchTrains);
+}
 
 if (refreshBookingsButton) {
     refreshBookingsButton.addEventListener("click", loadBookings);

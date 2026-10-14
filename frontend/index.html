@@ -1,4 +1,4 @@
-
+```html
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -55,6 +55,7 @@
       </div>
     </section>
 
+    <!-- 01: Search form -->
     <section class="search-panel panel" id="search-section">
       <div class="section-heading">
         <div>
@@ -101,6 +102,16 @@
           </div>
         </div>
 
+        <!-- NEW: Maximum fare -->
+        <div class="form-field">
+          <label for="budget">MAXIMUM BUDGET (₹)</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">₹</span>
+            <input id="budget" name="budget" type="number"
+                   min="0" step="1" placeholder="e.g. 600">
+          </div>
+        </div>
+
         <button type="submit" id="search-button" class="primary-button">
           <span>Search trains</span>
           <span aria-hidden="true">→</span>
@@ -112,12 +123,104 @@
       </p>
     </section>
 
+    <!-- NEW: Personalized recommendation preferences -->
+    <section class="panel preferences-panel" id="preferences-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">PERSONALIZE YOUR RESULTS</span>
+          <h2>What matters most to you?</h2>
+          <p>Adjust the importance of each factor to rank eligible trains.</p>
+        </div>
+        <span class="section-icon" aria-hidden="true">⚖</span>
+      </div>
+
+      <form id="preferences-form">
+        <div class="preference-grid">
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="priceWeight">Ticket price</label>
+              <output id="priceValue" for="priceWeight">5 / 5</output>
+            </div>
+            <input type="range" id="priceWeight"
+                   name="price_weight" min="1" max="5" step="1" value="5">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="durationWeight">Journey duration</label>
+              <output id="durationValue" for="durationWeight">4 / 5</output>
+            </div>
+            <input type="range" id="durationWeight"
+                   name="duration_weight" min="1" max="5" step="1" value="4">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="availabilityWeight">Available seats</label>
+              <output id="availabilityValue" for="availabilityWeight">3 / 5</output>
+            </div>
+            <input type="range" id="availabilityWeight"
+                   name="availability_weight" min="1" max="5" step="1" value="3">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="timingWeight">Departure time</label>
+              <output id="timingValue" for="timingWeight">2 / 5</output>
+            </div>
+            <input type="range" id="timingWeight"
+                   name="timing_weight" min="1" max="5" step="1" value="2">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="form-field preferred-time-field">
+          <label for="preferredTime">PREFERRED DEPARTURE TIME</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◷</span>
+            <input type="time" id="preferredTime"
+                   name="preferred_time" value="08:00">
+          </div>
+          <p class="field-hint">
+            Trains departing closer to this time receive a higher timing score.
+          </p>
+        </div>
+
+        <div class="preference-actions">
+          <button type="button" id="reset-preferences" class="secondary-button">
+            Reset preferences
+          </button>
+          <p class="field-hint">
+            Your preferences will be applied when you search for trains.
+          </p>
+        </div>
+      </form>
+    </section>
+
+    <!-- 02: Ranked train results -->
     <section class="results-section" id="results-section">
       <div class="section-heading results-heading">
         <div>
           <span class="eyebrow">02 / EXPLORE YOUR OPTIONS</span>
-          <h2>Available trains</h2>
-          <p>Compare train routes, fares and available seats.</p>
+          <h2>Recommended trains</h2>
+          <p>Trains are ranked using your selected preferences.</p>
         </div>
         <span id="result-count" class="result-count">Waiting for search</span>
       </div>
@@ -131,6 +234,7 @@
       </div>
     </section>
 
+    <!-- 03: Booking history -->
     <section class="panel bookings-panel" id="bookings-section">
       <div class="section-heading">
         <div>
@@ -176,6 +280,7 @@
     </footer>
   </main>
 
+  <!-- Booking dialog retained -->
   <dialog id="booking-dialog" class="booking-dialog" aria-labelledby="booking-title">
     <form id="passenger-form" class="passenger-form">
       <button type="button" id="close-booking" class="close-button"
@@ -216,6 +321,59 @@
 
   <div id="toast-container" class="toast-container"
        aria-live="polite" aria-atomic="true"></div>
+
+  <!-- Updates slider values and reset controls -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const sliders = [
+        ["priceWeight", "priceValue"],
+        ["durationWeight", "durationValue"],
+        ["availabilityWeight", "availabilityValue"],
+        ["timingWeight", "timingValue"]
+      ];
+
+      sliders.forEach(([sliderId, outputId]) => {
+        const slider = document.getElementById(sliderId);
+        const output = document.getElementById(outputId);
+
+        const updateOutput = () => {
+          output.value = `${slider.value} / 5`;
+          output.textContent = `${slider.value} / 5`;
+        };
+
+        slider.addEventListener("input", updateOutput);
+        updateOutput();
+      });
+
+      document.getElementById("reset-preferences").addEventListener("click", () => {
+        const defaults = {
+          priceWeight: 5,
+          durationWeight: 4,
+          availabilityWeight: 3,
+          timingWeight: 2
+        };
+
+        Object.entries(defaults).forEach(([id, value]) => {
+          document.getElementById(id).value = value;
+          document.getElementById(id).dispatchEvent(new Event("input"));
+        });
+
+        document.getElementById("preferredTime").value = "08:00";
+      });
+
+      // Set the minimum selectable date to today.
+      const dateInput = document.getElementById("journey-date");
+      const today = new Date();
+      const localDate = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, "0"),
+        String(today.getDate()).padStart(2, "0")
+      ].join("-");
+
+      dateInput.min = localDate;
+      if (!dateInput.value) dateInput.value = localDate;
+    });
+  </script>
 </body>
 </html>
 ```

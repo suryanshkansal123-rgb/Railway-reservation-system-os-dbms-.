@@ -1,4 +1,4 @@
-
+from recommendation import calculate_recommendations
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from threading import Lock
@@ -19,7 +19,9 @@ trains = [
         "source": "Dehradun",
         "destination": "Delhi",
         "fare": 500,
-        "seats": 10
+        "seats": 10,
+        "duration_minutes": 360,
+        "departure_time": "06:00"
     },
     {
         "id": 2,
@@ -28,7 +30,9 @@ trains = [
         "source": "Dehradun",
         "destination": "Delhi",
         "fare": 250,
-        "seats": 5
+        "seats": 5,
+        "duration_minutes": 360,
+        "departure_time": "06:00"
     },
     {
         "id": 3,
@@ -37,7 +41,9 @@ trains = [
         "source": "Delhi",
         "destination": "Dehradun",
         "fare": 400,
-        "seats": 8
+        "seats": 8,
+        "duration_minutes": 360,
+        "departure_time": "06:00"
     }
 ]
 
@@ -65,28 +71,65 @@ def home():
 # Example:
 # GET /api/trains?source=Dehradun&destination=Delhi
 @app.route("/api/trains", methods=["GET"])
+
+@app.route("/api/trains", methods=["GET"])
 def search_trains():
     source = request.args.get("source", "").strip()
     destination = request.args.get("destination", "").strip()
+    budget_text = request.args.get("budget")
 
-    results = trains
+    # Step 1: Validate budget
+    try:
+        budget = float(budget_text) if budget_text else None
 
-    if source:
-        results = [
-            train for train in results
-            if train["source"].casefold() == source.casefold()
-        ]
+        if budget is not None and budget < 0:
+            return jsonify({"error": "Budget cannot be negative"}), 400
 
-    if destination:
-        results = [
-            train for train in results
-            if train["destination"].casefold() == destination.casefold()
-        ]
+    except ValueError:
+        return jsonify({"error": "Invalid budget"}), 400
 
+    # Step 2: Filter trains by source, destination and budget
+    results = [
+        train for train in trains
+        if (not source or train["source"].casefold() == source.casefold())
+        and (
+            not destination
+            or train["destination"].casefold() == destination.casefold()
+        )
+        and (budget is None or train["fare"] <= budget)
+    ]
+
+    # Step 3: Read preference weights from the frontend
+    try:
+        weights = {
+            "price": int(request.args.get("price_weight", 5)),
+            "duration": int(request.args.get("duration_weight", 4)),
+            "availability": int(request.args.get("availability_weight", 3)),
+            "timing": int(request.args.get("timing_weight", 2))
+        }
+
+        preferred_time = request.args.get("preferred_time")
+
+        if preferred_time:
+            from datetime import datetime
+            datetime.strptime(preferred_time, "%H:%M")
+
+        # Step 4: Calculate scores and rank trains
+        ranked_trains = calculate_recommendations(
+            results,
+            weights=weights,
+            preferred_time=preferred_time
+        )
+
+    except (ValueError, TypeError, KeyError) as error:
+        return jsonify({"error": str(error)}), 400
+
+    # Step 5: Return ranked trains to the frontend
     return jsonify({
-        "count": len(results),
-        "trains": results
+        "count": len(ranked_trains),
+        "trains": ranked_trains
     })
+
 
 
 # API 2: Book a seat
