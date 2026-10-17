@@ -1,222 +1,284 @@
-from recommendation import calculate_recommendations
-from flask import Flask, request, jsonify
+
+from pathlib import Path
+import sqlite3
+
+from flask import Flask, jsonify, request
 from flask_cors import CORS
-from threading import Lock
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from recommendation import calculate_recommendations
 
 app = Flask(__name__)
-
-# Allows a separately running frontend to call this API.
-# For local development only; restrict allowed origins for deployment.
 CORS(app)
 
-# Temporary sample data.
-# We will connect MySQL later.
-trains = [
-    {
-        "id": 1,
-        "number": "12017",
-        "name": "Shatabdi Express",
-        "source": "Dehradun",
-        "destination": "Delhi",
-        "fare": 500,
-        "seats": 10,
-        "duration_minutes": 360,
-        "departure_time": "06:00"
-    },
-    {
-        "id": 2,
-        "number": "14041",
-        "name": "Mussoorie Express",
-        "source": "Dehradun",
-        "destination": "Delhi",
-        "fare": 250,
-        "seats": 5,
-        "duration_minutes": 360,
-        "departure_time": "06:00"
-    },
-    {
-        "id": 3,
-        "number": "12018",
-        "name": "Jan Shatabdi",
-        "source": "Delhi",
-        "destination": "Dehradun",
-        "fare": 400,
-        "seats": 8,
-        "duration_minutes": 360,
-        "departure_time": "06:00"
-    }
-]
-
-bookings = []
-next_booking_id = 1
-
-# Protects seat allocation and booking creation
-# within this single running Python process.
-booking_lock = Lock()
+DATABASE = Path(__file__).resolve().parent / "railway_users.db"
 
 
-@app.route("/", methods=["GET"])
+def get_connection():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def initialize_database():
+    with get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL,
+                email TEXT NOT NULL UNIQUE COLLATE NOCASE,
+                password_hash TEXT NOT NULL
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS trains (
+                id INTEGER PRIMARY KEY,
+                number TEXT NOT NULL,
+                name TEXT NOT NULL,
+                source TEXT NOT NULL,
+                destination TEXT NOT NULL,
+                fare REAL NOT NULL,
+                duration_minutes INTEGER NOT NULL,
+                departure_time TEXT NOT NULL,
+                seats INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS bookings (
+                booking_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                passenger_name TEXT NOT NULL,
+                train_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Confirmed',
+                FOREIGN KEY (train_id) REFERENCES trains(id)
+            )
+        """)
+
+        # Add sample trains only when the train table is empty.
+        count = conn.execute(
+            "SELECT COUNT(*) FROM trains"
+        ).fetchone()[0]
+
+        if count == 0:
+            sample_trains = [
+                (1, "12001", "Shatabdi Express", "Delhi", "Dehradun", 650, 360, "06:45", 45),
+                (2, "12017", "Dehradun Shatabdi", "Delhi", "Dehradun", 720, 345, "07:00", 30),
+                (3, "14041", "Mussoorie Express", "Delhi", "Dehradun", 350, 480, "22:25", 60),
+                (4, "14631", "Uttar Sampark Kranti", "Delhi", "Dehradun", 420, 420, "15:20", 25),
+                (5, "12002", "Shatabdi Express", "Dehradun", "Delhi", 650, 360, "17:00", 40),
+                (6, "14042", "Mussoorie Express", "Dehradun", "Delhi", 350, 480, "21:10", 55),
+            ]
+
+            conn.executemany("""
+                INSERT INTO trains
+                (id, number, name, source, destination, fare,
+                 duration_minutes, departure_time, seats)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, sample_trains)
+
+        conn.commit()
+
+
+# ---------------- AUTHENTICATION ----------------
+
+@app.get("/")
 def home():
     return jsonify({
-        "message": "Railway Reservation Backend is running",
-        "endpoints": {
-            "search_trains": "GET /api/trains",
-            "create_booking": "POST /api/bookings",
-            "booking_history": "GET /api/bookings"
-        }
+        "message": "Railway Reservation backend is running",
+        "database": str(DATABASE)
     })
 
 
-# API 1: Search trains
-# Example:
-# GET /api/trains?source=Dehradun&destination=Delhi
-@app.route("/api/trains", methods=["GET"])
+@app.post("/api/signup")
+def signup():
+    data = request.get_json(silent=True) or {}
 
-@app.route("/api/trains", methods=["GET"])
+    name = str(data.get("name", "")).strip()
+    email = str(data.get("email", "")).strip().lower()
+    password = data.get("password", "")
+
+    if not name or not email or not isinstance(password, str):
+        return jsonify({"error": "Name, email and password are required."}), 400
+
+    if len(password) < 6:
+        return jsonify({"error": "Password must contain at least 6 characters."}), 400
+
+    try:
+        with get_connection() as conn:
+            cursor = conn.execute(
+                "INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)",
+                (name, email, generate_password_hash(password))
+            )
+            conn.commit()
+
+        return jsonify({
+            "message": "Signup successful! You can now log in.",
+            "user": {"id": cursor.lastrowid, "name": name, "email": email}
+        }), 201
+
+    except sqlite3.IntegrityError:
+        return jsonify({"error": "This email already exists. Please log in instead."}), 409
+    except sqlite3.Error:
+        app.logger.exception("Signup database error")
+        return jsonify({"error": "Database error during signup."}), 500
+
+
+@app.post("/api/login")
+def login():
+    data = request.get_json(silent=True) or {}
+    email = str(data.get("email", "")).strip().lower()
+    password = data.get("password", "")
+
+    if not email or not isinstance(password, str) or not password:
+        return jsonify({"error": "Please enter your email and password."}), 400
+
+    try:
+        with get_connection() as conn:
+            user = conn.execute(
+                "SELECT id, name, email, password_hash FROM users WHERE email = ? COLLATE NOCASE",
+                (email,)
+            ).fetchone()
+    except sqlite3.Error:
+        app.logger.exception("Login database error")
+        return jsonify({"error": "Database error during login."}), 500
+
+    if user is None or not check_password_hash(user["password_hash"], password):
+        return jsonify({"error": "Invalid email or password."}), 401
+
+    return jsonify({
+        "message": "Login successful!",
+        "user": {"id": user["id"], "name": user["name"], "email": user["email"]}
+    })
+
+
+# ---------------- TRAIN SEARCH ----------------
+
+@app.get("/api/trains")
 def search_trains():
     source = request.args.get("source", "").strip()
     destination = request.args.get("destination", "").strip()
-    budget_text = request.args.get("budget")
 
-    # Step 1: Validate budget
     try:
-        budget = float(budget_text) if budget_text else None
+        budget = request.args.get("budget", "").strip()
+        budget = float(budget) if budget else None
 
-        if budget is not None and budget < 0:
-            return jsonify({"error": "Budget cannot be negative"}), 400
-
-    except ValueError:
-        return jsonify({"error": "Invalid budget"}), 400
-
-    # Step 2: Filter trains by source, destination and budget
-    results = [
-        train for train in trains
-        if (not source or train["source"].casefold() == source.casefold())
-        and (
-            not destination
-            or train["destination"].casefold() == destination.casefold()
-        )
-        and (budget is None or train["fare"] <= budget)
-    ]
-
-    # Step 3: Read preference weights from the frontend
-    try:
         weights = {
-            "price": int(request.args.get("price_weight", 5)),
-            "duration": int(request.args.get("duration_weight", 4)),
-            "availability": int(request.args.get("availability_weight", 3)),
-            "timing": int(request.args.get("timing_weight", 2))
+            "price": float(request.args.get("price_weight", 5)),
+            "duration": float(request.args.get("duration_weight", 4)),
+            "availability": float(request.args.get("availability_weight", 3)),
+            "timing": float(request.args.get("timing_weight", 2)),
         }
 
-        preferred_time = request.args.get("preferred_time")
+        if any(not 1 <= value <= 5 for value in weights.values()):
+            raise ValueError("Weights must be between 1 and 5.")
 
-        if preferred_time:
-            from datetime import datetime
-            datetime.strptime(preferred_time, "%H:%M")
+        with get_connection() as conn:
+            trains = conn.execute("""
+                SELECT * FROM trains
+                WHERE (? = '' OR source LIKE ?)
+                  AND (? = '' OR destination LIKE ?)
+                  AND (? IS NULL OR fare <= ?)
+                ORDER BY departure_time
+            """, (
+                source, f"%{source}%",
+                destination, f"%{destination}%",
+                budget, budget
+            )).fetchall()
 
-        # Step 4: Calculate scores and rank trains
-        ranked_trains = calculate_recommendations(
-            results,
-            weights=weights,
-            preferred_time=preferred_time
+        eligible = [dict(train) for train in trains]
+        preferred_time = request.args.get("preferred_time", "").strip() or None
+
+        recommended = calculate_recommendations(
+            eligible, weights, preferred_time
         )
 
-    except (ValueError, TypeError, KeyError) as error:
-        return jsonify({"error": str(error)}), 400
+        return jsonify({"trains": recommended})
 
-    # Step 5: Return ranked trains to the frontend
-    return jsonify({
-        "count": len(ranked_trains),
-        "trains": ranked_trains
-    })
-
-
-
-# API 2: Book a seat
-# POST /api/bookings
-# JSON body:
-# {
-#   "train_id": 1,
-#   "passenger_name": "Test Passenger"
-# }
-@app.route("/api/bookings", methods=["POST"])
-def create_booking():
-    global next_booking_id
-
-    data = request.get_json(silent=True)
-
-    if not isinstance(data, dict):
+    except (ValueError, TypeError):
         return jsonify({
-            "error": "Send booking details as JSON"
+            "error": "Please check your budget, weights and preferred time."
         }), 400
+    except sqlite3.Error:
+        app.logger.exception("Train search database error")
+        return jsonify({"error": "Could not search trains."}), 500
 
-    passenger_name = data.get("passenger_name")
+
+# ---------------- BOOKINGS ----------------
+
+@app.post("/api/bookings")
+def create_booking():
+    data = request.get_json(silent=True) or {}
+    passenger_name = str(data.get("passenger_name", "")).strip()
     train_id = data.get("train_id")
 
-    if not isinstance(passenger_name, str) or not passenger_name.strip():
+    if not passenger_name or train_id is None:
         return jsonify({
-            "error": "Passenger name is required"
+            "error": "Passenger name and train ID are required."
         }), 400
 
-    # Reject booleans, non-integer IDs and invalid IDs.
-    if isinstance(train_id, bool) or not isinstance(train_id, int):
-        return jsonify({
-            "error": "train_id must be an integer"
-        }), 400
+    try:
+        with get_connection() as conn:
+            train = conn.execute(
+                "SELECT id, seats FROM trains WHERE id = ?",
+                (train_id,)
+            ).fetchone()
 
-    with booking_lock:
-        train = next(
-            (item for item in trains if item["id"] == train_id),
-            None
-        )
+            if train is None:
+                return jsonify({"error": "Train not found."}), 404
 
-        if train is None:
-            return jsonify({
-                "error": "Train not found"
-            }), 404
+            if train["seats"] <= 0:
+                return jsonify({"error": "No seats available on this train."}), 409
 
-        if train["seats"] <= 0:
-            return jsonify({
-                "error": "No seats available"
-            }), 409
+            cursor = conn.execute("""
+                INSERT INTO bookings (passenger_name, train_id)
+                VALUES (?, ?)
+            """, (passenger_name, train_id))
 
-        # Reserve one seat and record the booking
-        # together while holding the lock.
-        train["seats"] -= 1
+            conn.execute(
+                "UPDATE trains SET seats = seats - 1 WHERE id = ?",
+                (train_id,)
+            )
+            conn.commit()
 
-        booking = {
-            "booking_id": next_booking_id,
-            "train_id": train["id"],
-            "train_number": train["number"],
-            "train_name": train["name"],
-            "passenger_name": passenger_name.strip(),
-            "fare": train["fare"],
-            "status": "CONFIRMED"
-        }
-
-        bookings.append(booking)
-        next_booking_id += 1
+            booking_id = cursor.lastrowid
 
         return jsonify({
-            "message": "Booking successful",
-            "booking": booking,
-            "seats_remaining": train["seats"]
+            "message": "Booking successful!",
+            "booking_id": booking_id
         }), 201
 
+    except (sqlite3.Error, ValueError):
+        app.logger.exception("Booking database error")
+        return jsonify({"error": "Could not complete booking."}), 500
 
-# API 3: View booking history
-@app.route("/api/bookings", methods=["GET"])
+
+@app.get("/api/bookings")
 def get_bookings():
-    with booking_lock:
-        return jsonify({
-            "count": len(bookings),
-            "bookings": bookings
-        })
+    try:
+        with get_connection() as conn:
+            rows = conn.execute("""
+                SELECT
+                    b.booking_id,
+                    b.status,
+                    b.passenger_name,
+                    t.name AS train_name,
+                    t.source,
+                    t.destination,
+                    t.fare
+                FROM bookings b
+                JOIN trains t ON t.id = b.train_id
+                ORDER BY b.booking_id DESC
+            """).fetchall()
+
+        return jsonify({"bookings": [dict(row) for row in rows]})
+
+    except sqlite3.Error:
+        app.logger.exception("Loading bookings failed")
+        return jsonify({"error": "Could not load bookings."}), 500
 
 
 if __name__ == "__main__":
-    app.run(
-        host="127.0.0.1",
-        port=5000,
-        debug=True
-    )
+    initialize_database()
+    print("Database being used:", DATABASE)
+    app.run(host="127.0.0.1", port=5000, debug=True)
