@@ -1,0 +1,487 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101c3a">
+  <meta name="description" content="RailEase railway reservation demo — search trains, explore fares and manage bookings.">
+  <title>RailEase | Railway Reservations</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="RailEase home">
+      <span class="brand-icon" aria-hidden="true">🚆</span>
+      <span class="brand-name">RailEase<small>RAILWAY RESERVATION SYSTEM</small></span>
+    </a>
+
+    <nav class="navigation" aria-label="Main navigation">
+      <a href="#search-section">Find trains</a>
+      <a href="#results-section">Train results</a>
+      <a href="#bookings-section">My bookings</a>
+    </nav>
+
+    <span class="system-status">
+      <span class="status-dot"></span>
+      <span id="connection-label">Checking system...</span>
+    </span>
+  </header>
+
+  <main>
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">YOUR JOURNEY STARTS HERE</span>
+        <h1>Travel more.<br><span>Worry less.</span></h1>
+        <p>Discover available trains, compare ticket fares and manage your railway reservations in one place.</p>
+
+        <div class="hero-highlights">
+          <span>✓ Easy train search</span>
+          <span>✓ Simple reservations</span>
+          <span>✓ Booking history</span>
+        </div>
+
+        <a href="#search-section" class="hero-cta">
+          Plan your journey <span>↓</span>
+        </a>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="visual-orbit orbit-one"></div>
+        <div class="visual-orbit orbit-two"></div>
+        <div class="visual-sun"></div>
+        <div class="visual-train">🚆</div>
+        <div class="visual-route">YOUR NEXT STOP: ADVENTURE</div>
+      </div>
+    </section>
+
+    <!-- 01: Search form -->
+    <section class="search-panel panel" id="search-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">01 / PLAN YOUR TRIP</span>
+          <h2>Where are you headed?</h2>
+          <p>Enter your journey details to explore trains.</p>
+        </div>
+        <span class="section-icon" aria-hidden="true">⌕</span>
+      </div>
+
+      <form id="search-form">
+        <div class="form-field">
+          <label for="source">FROM STATION</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◉</span>
+            <select id="source" name="source" required>
+              <option value="Dehradun">Dehradun</option>
+              <option value="Delhi">Delhi</option>
+            </select>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="swap-stations"
+          class="swap-button"
+          aria-label="Swap departure and destination stations"
+          title="Swap stations">⇄</button>
+
+        <div class="form-field">
+          <label for="destination">TO STATION</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◎</span>
+            <select id="destination" name="destination" required>
+              <option value="Delhi">Delhi</option>
+              <option value="Dehradun">Dehradun</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="journey-date">JOURNEY DATE</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">▦</span>
+            <input id="journey-date" name="journey-date" type="date" required>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="budget">MAXIMUM BUDGET (₹)</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">₹</span>
+            <input
+              id="budget"
+              name="budget"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="e.g. 600">
+          </div>
+        </div>
+
+        <button type="submit" id="search-button" class="primary-button">
+          <span>Search trains</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </form>
+
+      <p id="search-message" class="message" role="status" aria-live="polite">
+        Choose your stations to get started.
+      </p>
+    </section>
+
+    <!-- Personalized recommendations -->
+    <section class="panel preferences-panel" id="preferences-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">PERSONALIZE YOUR RESULTS</span>
+          <h2>What matters most to you?</h2>
+          <p>Adjust the importance of each factor to rank eligible trains.</p>
+        </div>
+        <span class="section-icon" aria-hidden="true">⚖</span>
+      </div>
+
+      <form id="preferences-form">
+        <div class="preference-grid">
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="priceWeight">Ticket price</label>
+              <output id="priceValue" for="priceWeight">5 / 5</output>
+            </div>
+            <input
+              type="range"
+              id="priceWeight"
+              name="price_weight"
+              min="1" max="5" step="1" value="5">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="durationWeight">Journey duration</label>
+              <output id="durationValue" for="durationWeight">4 / 5</output>
+            </div>
+            <input
+              type="range"
+              id="durationWeight"
+              name="duration_weight"
+              min="1" max="5" step="1" value="4">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="availabilityWeight">Available seats</label>
+              <output id="availabilityValue" for="availabilityWeight">3 / 5</output>
+            </div>
+            <input
+              type="range"
+              id="availabilityWeight"
+              name="availability_weight"
+              min="1" max="5" step="1" value="3">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="timingWeight">Departure time</label>
+              <output id="timingValue" for="timingWeight">2 / 5</output>
+            </div>
+            <input
+              type="range"
+              id="timingWeight"
+              name="timing_weight"
+              min="1" max="5" step="1" value="2">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-field preferred-time-field">
+          <label for="preferredTime">PREFERRED DEPARTURE TIME</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◷</span>
+            <input
+              type="time"
+              id="preferredTime"
+              name="preferred_time"
+              value="08:00">
+          </div>
+          <p class="field-hint">
+            Trains departing closer to this time receive a higher timing score.
+          </p>
+        </div>
+
+        <div class="preference-actions">
+          <button type="button" id="reset-preferences" class="secondary-button">
+            Reset preferences
+          </button>
+          <p class="field-hint">
+            Your preferences will be applied when you search for trains.
+          </p>
+        </div>
+      </form>
+    </section>
+
+    <!-- 02: Train results -->
+    <section class="results-section" id="results-section">
+      <div class="section-heading results-heading">
+        <div>
+          <span class="eyebrow">02 / EXPLORE YOUR OPTIONS</span>
+          <h2>Recommended trains</h2>
+          <p>Trains are ranked using your selected preferences.</p>
+        </div>
+        <span id="result-count" class="result-count">Waiting for search</span>
+      </div>
+
+      <div id="train-list" class="train-grid" aria-live="polite">
+        <div class="empty-state">
+          <span class="empty-illustration" aria-hidden="true">🚉</span>
+          <h3>Your next journey is one search away</h3>
+          <p>Select your departure and destination stations above.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 03: Booking history -->
+    <section class="panel bookings-panel" id="bookings-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">03 / YOUR TRAVEL ACTIVITY</span>
+          <h2>Booking history</h2>
+          <p>View reservations recorded by your connected system.</p>
+        </div>
+        <button type="button" id="refresh-bookings" class="secondary-button">
+          <span aria-hidden="true">↻</span> Refresh
+        </button>
+      </div>
+
+      <p id="booking-message" class="message" role="status" aria-live="polite">
+        Loading booking history...
+      </p>
+
+      <div id="booking-list" class="booking-grid">
+        <div class="empty-state compact">
+          <p>Your booking history will appear here.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Information strip -->
+    <section class="info-strip">
+      <div class="info-item">
+        <span aria-hidden="true">🔎</span>
+        <div>
+          <strong>Find your train</strong>
+          <p>Search by station and route.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span aria-hidden="true">🎟️</span>
+        <div>
+          <strong>Book with ease</strong>
+          <p>Enter passenger details to reserve.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span aria-hidden="true">📋</span>
+        <div>
+          <strong>Track reservations</strong>
+          <p>Review saved bookings.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <a class="footer-brand" href="#">RailEase 🚆</a>
+      <p>Railway Reservation System · Academic project</p>
+      <small>
+        Train availability and reservations depend on the connected project backend.
+        This is not an official railway booking service.
+      </small>
+    </footer>
+  </main>
+
+  <!-- Family booking dialog -->
+  <dialog id="booking-dialog" class="booking-dialog" aria-labelledby="booking-title">
+    <form id="passenger-form" class="passenger-form">
+      <button
+        type="button"
+        id="close-booking"
+        class="close-button"
+        aria-label="Close booking form">×</button>
+
+      <span class="eyebrow">COMPLETE YOUR RESERVATION</span>
+      <h2 id="booking-title">Passenger details</h2>
+      <p id="selected-train-summary" class="dialog-description">
+        Review your selected train.
+      </p>
+
+      <div class="selected-train-preview" id="selected-train-preview">
+        <span aria-hidden="true">🚆</span>
+        <div>
+          <strong id="selected-train-name">Selected train</strong>
+          <small id="selected-train-route">Journey route</small>
+        </div>
+        <strong id="selected-train-fare">₹—</strong>
+      </div>
+
+      <!-- Number of passengers -->
+      <div class="form-field passenger-field">
+        <label for="passenger-count">NUMBER OF PASSENGERS</label>
+        <select id="passenger-count" name="passenger-count" required>
+          <option value="1">1 Passenger</option>
+          <option value="2">2 Passengers</option>
+          <option value="3">3 Passengers</option>
+          <option value="4">4 Passengers</option>
+          <option value="5">5 Passengers</option>
+          <option value="6">6 Passengers</option>
+          <option value="7">7 Passengers</option>
+          <option value="8">8 Passengers</option>
+          <option value="9">9 Passengers</option>
+          <option value="10">10 Passengers</option>
+        </select>
+      </div>
+
+      <!-- script.js creates each passenger's fields here -->
+      <div id="passenger-details-container"></div>
+
+      <!-- Calculated fare summary -->
+      <p id="family-fare-summary" class="form-note" aria-live="polite">
+        Select the number of passengers to calculate the total fare.
+      </p>
+
+      <p class="form-note">
+        Review each passenger's details before confirming your booking.
+      </p>
+
+      <button type="submit" id="confirm-booking" class="primary-button">
+        Confirm booking <span aria-hidden="true">→</span>
+      </button>
+    </form>
+  </dialog>
+
+  <div
+    id="toast-container"
+    class="toast-container"
+    aria-live="polite"
+    aria-atomic="true"></div>
+
+  <!-- Recommendation slider controls and journey date -->
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const sliders = [
+        ["priceWeight", "priceValue"],
+        ["durationWeight", "durationValue"],
+        ["availabilityWeight", "availabilityValue"],
+        ["timingWeight", "timingValue"]
+      ];
+
+      sliders.forEach(([sliderId, outputId]) => {
+        const slider = document.getElementById(sliderId);
+        const output = document.getElementById(outputId);
+
+        const updateOutput = () => {
+          output.value = `${slider.value} / 5`;
+          output.textContent = `${slider.value} / 5`;
+        };
+
+        slider.addEventListener("input", updateOutput);
+        updateOutput();
+      });
+
+      document.getElementById("reset-preferences").addEventListener("click", () => {
+        const defaults = {
+          priceWeight: 5,
+          durationWeight: 4,
+          availabilityWeight: 3,
+          timingWeight: 2
+        };
+
+        Object.entries(defaults).forEach(([id, value]) => {
+          document.getElementById(id).value = value;
+          document.getElementById(id).dispatchEvent(new Event("input"));
+        });
+
+        document.getElementById("preferredTime").value = "08:00";
+      });
+
+      const dateInput = document.getElementById("journey-date");
+      const today = new Date();
+
+      const localDate = [
+        today.getFullYear(),
+        String(today.getMonth() + 1).padStart(2, "0"),
+        String(today.getDate()).padStart(2, "0")
+      ].join("-");
+
+      dateInput.min = localDate;
+      if (!dateInput.value) {
+        dateInput.value = localDate;
+      }
+    });
+  </script>
+<!-- OS Synchronization Demonstration -->
+<section id="sync-demo" class="sync-demo">
+    <h2>OS Synchronization Demo</h2>
+    <p>
+        Simulate multiple booking requests competing for a limited
+        number of seats. A lock protects the shared seat counter.
+    </p>
+
+    <div class="sync-controls">
+        <label for="sync-attempts">Concurrent requests</label>
+        <input id="sync-attempts" type="number"
+               min="1" max="50" value="10">
+
+        <label for="sync-seats">Available seats</label>
+        <input id="sync-seats" type="number"
+               min="0" max="50" value="5">
+
+        <button id="sync-run-btn" type="button">
+            Run Synchronization Demo
+        </button>
+    </div>
+
+    <p id="sync-message" role="status">
+        Ready to run the demonstration.
+    </p>
+
+    <div class="sync-results">
+        <div class="sync-card">
+            <span>Total requests</span>
+            <strong id="sync-total">—</strong>
+        </div>
+        <div class="sync-card">
+            <span>Successful</span>
+            <strong id="sync-success">—</strong>
+        </div>
+        <div class="sync-card">
+            <span>Rejected</span>
+            <strong id="sync-rejected">—</strong>
+        </div>
+        <div class="sync-card">
+            <span>Seats remaining</span>
+            <strong id="sync-remaining">—</strong>
+        </div>
+    </div>
+
+    <h3>Individual Request Results</h3>
+    <div id="sync-request-results"></div>
+</section>
+
+</body>
+</html>
