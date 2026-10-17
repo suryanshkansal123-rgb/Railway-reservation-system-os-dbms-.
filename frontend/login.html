@@ -28,28 +28,47 @@
             <form id="auth-form">
                 <div class="form-group" id="username-group" hidden>
                     <label for="username">Full Name</label>
-                    <input id="username" name="name" type="text"
-                           autocomplete="name">
+                    <input
+                        id="username"
+                        name="name"
+                        type="text"
+                        autocomplete="name"
+                    >
                 </div>
 
                 <div class="form-group" id="email-group" hidden>
                     <label for="email">Email</label>
-                    <input id="email" name="email" type="email"
-                           autocomplete="email">
+                    <input
+                        id="email"
+                        name="email"
+                        type="email"
+                        autocomplete="email"
+                    >
                 </div>
 
                 <div class="form-group" id="identifier-group">
-                    <label for="login-identifier">Email</label>
-                    <input id="login-identifier" name="identifier"
-                           type="email" autocomplete="username" required>
+                    <label for="login-identifier">Email / Username</label>
+                    <input
+                        id="login-identifier"
+                        name="identifier"
+                        type="text"
+                        autocomplete="username"
+                        placeholder="Enter your email or username"
+                        required
+                    >
                 </div>
 
                 <div class="form-group">
                     <label for="password">Password</label>
                     <div class="password-field">
-                        <input id="password" name="password" type="password"
-                               minlength="6" autocomplete="current-password"
-                               required>
+                        <input
+                            id="password"
+                            name="password"
+                            type="password"
+                            minlength="6"
+                            autocomplete="current-password"
+                            required
+                        >
                         <button type="button" id="toggle-password">
                             Show
                         </button>
@@ -59,9 +78,13 @@
                 <div class="form-group" id="confirm-group" hidden>
                     <label for="confirm-password">Confirm Password</label>
                     <div class="password-field">
-                        <input id="confirm-password" name="confirmPassword"
-                               type="password" minlength="6"
-                               autocomplete="new-password">
+                        <input
+                            id="confirm-password"
+                            name="confirmPassword"
+                            type="password"
+                            minlength="6"
+                            autocomplete="new-password"
+                        >
                         <button type="button" id="toggle-confirm-password">
                             Show
                         </button>
@@ -78,3 +101,4 @@
     </main>
 </body>
 </html>
+```
