@@ -1338,3 +1338,88 @@ summary:focus-visible {
         transition-duration: .01ms !important;
     }
 }
+
+/* OS Synchronization Demo */
+.sync-demo {
+    margin: 32px 0;
+    padding: 24px;
+    border: 1px solid #d1d5db;
+    border-radius: 16px;
+}
+
+.sync-demo h2 {
+    margin-top: 0;
+}
+
+.sync-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.sync-controls input {
+    width: 80px;
+    padding: 9px;
+    border: 1px solid #9ca3af;
+    border-radius: 8px;
+}
+
+.sync-controls button {
+    padding: 11px 16px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #2563eb;
+    color: white;
+}
+
+.sync-controls button:disabled {
+    opacity: 0.6;
+    cursor: wait;
+}
+
+.sync-results {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.sync-card {
+    padding: 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.sync-card strong {
+    font-size: 25px;
+}
+
+.sync-result-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid #d1d5db;
+}
+
+.sync-status-success {
+    color: #15803d;
+}
+
+.sync-status-rejected {
+    color: #dc2626;
+}
+
+@media (max-width: 600px) {
+    .sync-results {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+

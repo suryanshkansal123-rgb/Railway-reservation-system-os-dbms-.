@@ -31,6 +31,7 @@
   </header>
 
   <main>
+    <!-- Hero -->
     <section class="hero">
       <div class="hero-copy">
         <span class="eyebrow">YOUR JOURNEY STARTS HERE</span>
@@ -43,7 +44,9 @@
           <span>✓ Booking history</span>
         </div>
 
-        <a href="#search-section" class="hero-cta">Plan your journey <span>↓</span></a>
+        <a href="#search-section" class="hero-cta">
+          Plan your journey <span>↓</span>
+        </a>
       </div>
 
       <div class="hero-visual" aria-hidden="true">
@@ -78,9 +81,12 @@
           </div>
         </div>
 
-        <button type="button" id="swap-stations" class="swap-button"
-                aria-label="Swap departure and destination stations"
-                title="Swap stations">⇄</button>
+        <button
+          type="button"
+          id="swap-stations"
+          class="swap-button"
+          aria-label="Swap departure and destination stations"
+          title="Swap stations">⇄</button>
 
         <div class="form-field">
           <label for="destination">TO STATION</label>
@@ -97,18 +103,21 @@
           <label for="journey-date">JOURNEY DATE</label>
           <div class="input-wrap">
             <span class="input-icon" aria-hidden="true">▦</span>
-            <input id="journey-date" name="journey-date"
-                   type="date" required>
+            <input id="journey-date" name="journey-date" type="date" required>
           </div>
         </div>
 
-        <!-- NEW: Maximum fare -->
         <div class="form-field">
           <label for="budget">MAXIMUM BUDGET (₹)</label>
           <div class="input-wrap">
             <span class="input-icon" aria-hidden="true">₹</span>
-            <input id="budget" name="budget" type="number"
-                   min="0" step="1" placeholder="e.g. 600">
+            <input
+              id="budget"
+              name="budget"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="e.g. 600">
           </div>
         </div>
 
@@ -123,7 +132,7 @@
       </p>
     </section>
 
-    <!-- NEW: Personalized recommendation preferences -->
+    <!-- Personalized recommendations -->
     <section class="panel preferences-panel" id="preferences-section">
       <div class="section-heading">
         <div>
@@ -136,14 +145,16 @@
 
       <form id="preferences-form">
         <div class="preference-grid">
-
           <div class="preference-item">
             <div class="preference-heading">
               <label for="priceWeight">Ticket price</label>
               <output id="priceValue" for="priceWeight">5 / 5</output>
             </div>
-            <input type="range" id="priceWeight"
-                   name="price_weight" min="1" max="5" step="1" value="5">
+            <input
+              type="range"
+              id="priceWeight"
+              name="price_weight"
+              min="1" max="5" step="1" value="5">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
@@ -155,8 +166,11 @@
               <label for="durationWeight">Journey duration</label>
               <output id="durationValue" for="durationWeight">4 / 5</output>
             </div>
-            <input type="range" id="durationWeight"
-                   name="duration_weight" min="1" max="5" step="1" value="4">
+            <input
+              type="range"
+              id="durationWeight"
+              name="duration_weight"
+              min="1" max="5" step="1" value="4">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
@@ -168,8 +182,11 @@
               <label for="availabilityWeight">Available seats</label>
               <output id="availabilityValue" for="availabilityWeight">3 / 5</output>
             </div>
-            <input type="range" id="availabilityWeight"
-                   name="availability_weight" min="1" max="5" step="1" value="3">
+            <input
+              type="range"
+              id="availabilityWeight"
+              name="availability_weight"
+              min="1" max="5" step="1" value="3">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
@@ -181,22 +198,27 @@
               <label for="timingWeight">Departure time</label>
               <output id="timingValue" for="timingWeight">2 / 5</output>
             </div>
-            <input type="range" id="timingWeight"
-                   name="timing_weight" min="1" max="5" step="1" value="2">
+            <input
+              type="range"
+              id="timingWeight"
+              name="timing_weight"
+              min="1" max="5" step="1" value="2">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
             </div>
           </div>
-
         </div>
 
         <div class="form-field preferred-time-field">
           <label for="preferredTime">PREFERRED DEPARTURE TIME</label>
           <div class="input-wrap">
             <span class="input-icon" aria-hidden="true">◷</span>
-            <input type="time" id="preferredTime"
-                   name="preferred_time" value="08:00">
+            <input
+              type="time"
+              id="preferredTime"
+              name="preferred_time"
+              value="08:00">
           </div>
           <p class="field-hint">
             Trains departing closer to this time receive a higher timing score.
@@ -214,7 +236,7 @@
       </form>
     </section>
 
-    <!-- 02: Ranked train results -->
+    <!-- 02: Train results -->
     <section class="results-section" id="results-section">
       <div class="section-heading results-heading">
         <div>
@@ -258,33 +280,49 @@
       </div>
     </section>
 
+    <!-- Information strip -->
     <section class="info-strip">
       <div class="info-item">
         <span aria-hidden="true">🔎</span>
-        <div><strong>Find your train</strong><p>Search by station and route.</p></div>
+        <div>
+          <strong>Find your train</strong>
+          <p>Search by station and route.</p>
+        </div>
       </div>
       <div class="info-item">
         <span aria-hidden="true">🎟️</span>
-        <div><strong>Book with ease</strong><p>Enter passenger details to reserve.</p></div>
+        <div>
+          <strong>Book with ease</strong>
+          <p>Enter passenger details to reserve.</p>
+        </div>
       </div>
       <div class="info-item">
         <span aria-hidden="true">📋</span>
-        <div><strong>Track reservations</strong><p>Review saved bookings.</p></div>
+        <div>
+          <strong>Track reservations</strong>
+          <p>Review saved bookings.</p>
+        </div>
       </div>
     </section>
 
     <footer>
       <a class="footer-brand" href="#">RailEase 🚆</a>
       <p>Railway Reservation System · Academic project</p>
-      <small>Train availability and reservations depend on the connected project backend. This is not an official railway booking service.</small>
+      <small>
+        Train availability and reservations depend on the connected project backend.
+        This is not an official railway booking service.
+      </small>
     </footer>
   </main>
 
-  <!-- Booking dialog retained -->
+  <!-- Family booking dialog -->
   <dialog id="booking-dialog" class="booking-dialog" aria-labelledby="booking-title">
     <form id="passenger-form" class="passenger-form">
-      <button type="button" id="close-booking" class="close-button"
-              aria-label="Close booking form">×</button>
+      <button
+        type="button"
+        id="close-booking"
+        class="close-button"
+        aria-label="Close booking form">×</button>
 
       <span class="eyebrow">COMPLETE YOUR RESERVATION</span>
       <h2 id="booking-title">Passenger details</h2>
@@ -301,16 +339,33 @@
         <strong id="selected-train-fare">₹—</strong>
       </div>
 
+      <!-- Number of passengers -->
       <div class="form-field passenger-field">
-        <label for="passenger-name">PASSENGER FULL NAME</label>
-        <input id="passenger-name" name="passenger-name"
-               type="text" placeholder="Enter passenger name"
-               minlength="2" maxlength="100"
-               autocomplete="name" required>
+        <label for="passenger-count">NUMBER OF PASSENGERS</label>
+        <select id="passenger-count" name="passenger-count" required>
+          <option value="1">1 Passenger</option>
+          <option value="2">2 Passengers</option>
+          <option value="3">3 Passengers</option>
+          <option value="4">4 Passengers</option>
+          <option value="5">5 Passengers</option>
+          <option value="6">6 Passengers</option>
+          <option value="7">7 Passengers</option>
+          <option value="8">8 Passengers</option>
+          <option value="9">9 Passengers</option>
+          <option value="10">10 Passengers</option>
+        </select>
       </div>
 
+      <!-- script.js creates each passenger's fields here -->
+      <div id="passenger-details-container"></div>
+
+      <!-- Calculated fare summary -->
+      <p id="family-fare-summary" class="form-note" aria-live="polite">
+        Select the number of passengers to calculate the total fare.
+      </p>
+
       <p class="form-note">
-        Your booking will be submitted to the project's connected backend.
+        Review each passenger's details before confirming your booking.
       </p>
 
       <button type="submit" id="confirm-booking" class="primary-button">
@@ -319,10 +374,13 @@
     </form>
   </dialog>
 
-  <div id="toast-container" class="toast-container"
-       aria-live="polite" aria-atomic="true"></div>
+  <div
+    id="toast-container"
+    class="toast-container"
+    aria-live="polite"
+    aria-atomic="true"></div>
 
-  <!-- Updates slider values and reset controls -->
+  <!-- Recommendation slider controls and journey date -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const sliders = [
@@ -361,9 +419,9 @@
         document.getElementById("preferredTime").value = "08:00";
       });
 
-      // Set the minimum selectable date to today.
       const dateInput = document.getElementById("journey-date");
       const today = new Date();
+
       const localDate = [
         today.getFullYear(),
         String(today.getMonth() + 1).padStart(2, "0"),
@@ -371,9 +429,59 @@
       ].join("-");
 
       dateInput.min = localDate;
-      if (!dateInput.value) dateInput.value = localDate;
+      if (!dateInput.value) {
+        dateInput.value = localDate;
+      }
     });
   </script>
+<!-- OS Synchronization Demonstration -->
+<section id="sync-demo" class="sync-demo">
+    <h2>OS Synchronization Demo</h2>
+    <p>
+        Simulate multiple booking requests competing for a limited
+        number of seats. A lock protects the shared seat counter.
+    </p>
+
+    <div class="sync-controls">
+        <label for="sync-attempts">Concurrent requests</label>
+        <input id="sync-attempts" type="number"
+               min="1" max="50" value="10">
+
+        <label for="sync-seats">Available seats</label>
+        <input id="sync-seats" type="number"
+               min="0" max="50" value="5">
+
+        <button id="sync-run-btn" type="button">
+            Run Synchronization Demo
+        </button>
+    </div>
+
+    <p id="sync-message" role="status">
+        Ready to run the demonstration.
+    </p>
+
+    <div class="sync-results">
+        <div class="sync-card">
+            <span>Total requests</span>
+            <strong id="sync-total">—</strong>
+        </div>
+        <div class="sync-card">
+            <span>Successful</span>
+            <strong id="sync-success">—</strong>
+        </div>
+        <div class="sync-card">
+            <span>Rejected</span>
+            <strong id="sync-rejected">—</strong>
+        </div>
+        <div class="sync-card">
+            <span>Seats remaining</span>
+            <strong id="sync-remaining">—</strong>
+        </div>
+    </div>
+
+    <h3>Individual Request Results</h3>
+    <div id="sync-request-results"></div>
+</section>
+
 </body>
 </html>
-```

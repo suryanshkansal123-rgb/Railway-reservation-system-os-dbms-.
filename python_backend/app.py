@@ -1,8 +1,8 @@
 
 from pathlib import Path
 import sqlite3
-from threading import Lock, Barrier
 from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier, Lock
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -14,13 +14,14 @@ app = Flask(__name__)
 CORS(app)
 
 DATABASE = Path(__file__).resolve().parent / "railway_users.db"
+MAX_PASSENGERS = 10
+VALID_GENDERS = {"Male", "Female", "Other", "Prefer not to say"}
 
 
 def get_connection():
     conn = sqlite3.connect(DATABASE, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA busy_timeout = 10000")
     return conn
 
 
@@ -45,10 +46,11 @@ def initialize_database():
                 fare REAL NOT NULL,
                 duration_minutes INTEGER NOT NULL,
                 departure_time TEXT NOT NULL,
-                seats INTEGER NOT NULL DEFAULT 0
+                seats INTEGER NOT NULL DEFAULT 0 CHECK (seats >= 0)
             )
         """)
 
+        # Existing single-passenger booking table is preserved.
         conn.execute("""
             CREATE TABLE IF NOT EXISTS bookings (
                 booking_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,17 +61,28 @@ def initialize_database():
             )
         """)
 
-        # Stores every passenger in a single-person or family booking.
-        # Existing bookings are preserved.
+        # New tables for family bookings.
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS booking_groups (
+                group_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                train_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'Confirmed',
+                passenger_count INTEGER NOT NULL,
+                total_fare REAL NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (train_id) REFERENCES trains(id)
+            )
+        """)
+
         conn.execute("""
             CREATE TABLE IF NOT EXISTS booking_passengers (
                 passenger_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                booking_id INTEGER NOT NULL,
+                group_id INTEGER NOT NULL,
                 name TEXT NOT NULL,
-                age INTEGER NOT NULL CHECK (age BETWEEN 0 AND 120),
+                age INTEGER NOT NULL,
                 gender TEXT NOT NULL,
-                FOREIGN KEY (booking_id)
-                    REFERENCES bookings(booking_id)
+                FOREIGN KEY (group_id)
+                    REFERENCES booking_groups(group_id)
                     ON DELETE CASCADE
             )
         """)
@@ -80,18 +93,12 @@ def initialize_database():
 
         if count == 0:
             sample_trains = [
-                (1, "12001", "Shatabdi Express", "Delhi", "Dehradun",
-                 650, 360, "06:45", 45),
-                (2, "12017", "Dehradun Shatabdi", "Delhi", "Dehradun",
-                 720, 345, "07:00", 30),
-                (3, "14041", "Mussoorie Express", "Delhi", "Dehradun",
-                 350, 480, "22:25", 60),
-                (4, "14631", "Uttar Sampark Kranti", "Delhi", "Dehradun",
-                 420, 420, "15:20", 25),
-                (5, "12002", "Shatabdi Express", "Dehradun", "Delhi",
-                 650, 360, "17:00", 40),
-                (6, "14042", "Mussoorie Express", "Dehradun", "Delhi",
-                 350, 480, "21:10", 55),
+                (1, "12001", "Shatabdi Express", "Delhi", "Dehradun", 650, 360, "06:45", 45),
+                (2, "12017", "Dehradun Shatabdi", "Delhi", "Dehradun", 720, 345, "07:00", 30),
+                (3, "14041", "Mussoorie Express", "Delhi", "Dehradun", 350, 480, "22:25", 60),
+                (4, "14631", "Uttar Sampark Kranti", "Delhi", "Dehradun", 420, 420, "15:20", 25),
+                (5, "12002", "Shatabdi Express", "Dehradun", "Delhi", 650, 360, "17:00", 40),
+                (6, "14042", "Mussoorie Express", "Dehradun", "Delhi", 350, 480, "21:10", 55),
             ]
 
             conn.executemany("""
@@ -104,34 +111,15 @@ def initialize_database():
         conn.commit()
 
 
-# ---------------- HOME ----------------
+# ---------------- AUTHENTICATION ----------------
 
 @app.get("/")
 def home():
     return jsonify({
         "message": "Railway Reservation backend is running",
-        "features": [
-            "User signup and login",
-            "Train search",
-            "Weighted recommendations",
-            "Single and family bookings",
-            "Passenger name, age and gender",
-            "Atomic seat reservation",
-            "OS synchronization demonstration",
-            "Booking history"
-        ],
-        "endpoints": {
-            "signup": "POST /api/signup",
-            "login": "POST /api/login",
-            "search_trains": "GET /api/trains",
-            "create_booking": "POST /api/bookings",
-            "booking_history": "GET /api/bookings",
-            "concurrency_demo": "GET /api/demo/concurrency"
-        }
+        "database": str(DATABASE)
     })
 
-
-# ---------------- AUTHENTICATION ----------------
 
 @app.post("/api/signup")
 def signup():
@@ -154,10 +142,8 @@ def signup():
     try:
         with get_connection() as conn:
             cursor = conn.execute(
-                """
-                INSERT INTO users (name, email, password_hash)
-                VALUES (?, ?, ?)
-                """,
+                """INSERT INTO users (name, email, password_hash)
+                   VALUES (?, ?, ?)""",
                 (name, email, generate_password_hash(password))
             )
             conn.commit()
@@ -175,7 +161,6 @@ def signup():
         return jsonify({
             "error": "This email already exists. Please log in instead."
         }), 409
-
     except sqlite3.Error:
         app.logger.exception("Signup database error")
         return jsonify({"error": "Database error during signup."}), 500
@@ -184,7 +169,6 @@ def signup():
 @app.post("/api/login")
 def login():
     data = request.get_json(silent=True) or {}
-
     email = str(data.get("email", "")).strip().lower()
     password = data.get("password", "")
 
@@ -196,14 +180,10 @@ def login():
     try:
         with get_connection() as conn:
             user = conn.execute(
-                """
-                SELECT id, name, email, password_hash
-                FROM users
-                WHERE email = ? COLLATE NOCASE
-                """,
+                """SELECT id, name, email, password_hash
+                   FROM users WHERE email = ? COLLATE NOCASE""",
                 (email,)
             ).fetchone()
-
     except sqlite3.Error:
         app.logger.exception("Login database error")
         return jsonify({"error": "Database error during login."}), 500
@@ -235,25 +215,20 @@ def search_trains():
         budget = float(budget_text) if budget_text else None
 
         if budget is not None and budget < 0:
-            raise ValueError
+            raise ValueError("Budget cannot be negative.")
 
         weights = {
             "price": float(request.args.get("price_weight", 5)),
             "duration": float(request.args.get("duration_weight", 4)),
-            "availability": float(
-                request.args.get("availability_weight", 3)
-            ),
+            "availability": float(request.args.get("availability_weight", 3)),
             "timing": float(request.args.get("timing_weight", 2)),
         }
 
-        if any(
-            not 1 <= value <= 5
-            for value in weights.values()
-        ):
-            raise ValueError
+        if any(not 1 <= value <= 5 for value in weights.values()):
+            raise ValueError("Weights must be between 1 and 5.")
 
         with get_connection() as conn:
-            rows = conn.execute("""
+            trains = conn.execute("""
                 SELECT * FROM trains
                 WHERE (? = '' OR source LIKE ?)
                   AND (? = '' OR destination LIKE ?)
@@ -265,130 +240,104 @@ def search_trains():
                 budget, budget
             )).fetchall()
 
-        eligible = [dict(train) for train in rows]
+        eligible = [dict(train) for train in trains]
         preferred_time = (
             request.args.get("preferred_time", "").strip() or None
         )
 
         recommended = calculate_recommendations(
-            eligible,
-            weights,
-            preferred_time
+            eligible, weights, preferred_time
         )
 
-        return jsonify({
-            "count": len(recommended),
-            "trains": recommended
-        })
+        return jsonify({"trains": recommended})
 
     except (ValueError, TypeError):
         return jsonify({
             "error": "Please check your budget, weights and preferred time."
         }), 400
-
     except sqlite3.Error:
         app.logger.exception("Train search database error")
         return jsonify({"error": "Could not search trains."}), 500
 
 
-# ---------------- SINGLE / FAMILY BOOKINGS ----------------
+# ---------------- SINGLE + FAMILY BOOKINGS ----------------
 
 @app.post("/api/bookings")
 def create_booking():
-    data = request.get_json(silent=True)
-
-    if not isinstance(data, dict):
-        return jsonify({
-            "error": "Send booking details as JSON."
-        }), 400
-
+    data = request.get_json(silent=True) or {}
     train_id = data.get("train_id")
 
-    if (
-        isinstance(train_id, bool)
-        or not isinstance(train_id, int)
-    ):
-        return jsonify({
-            "error": "Train ID must be an integer."
-        }), 400
+    if train_id is None:
+        return jsonify({"error": "Train ID is required."}), 400
 
-    # New format: passengers is a list of passenger objects.
-    passengers = data.get("passengers")
-
-    # Backward compatibility with the old frontend.
-    if passengers is None and "passenger_name" in data:
-        passengers = [{
-            "name": data.get("passenger_name"),
-            "age": data.get("age", 20),
-            "gender": data.get("gender", "Prefer not to say")
+    # Accept the new family payload, while retaining compatibility
+    # with the old frontend's { passenger_name, train_id } payload.
+    if "passengers" in data:
+        raw_passengers = data.get("passengers")
+        if not isinstance(raw_passengers, list):
+            return jsonify({"error": "Passengers must be a list."}), 400
+    else:
+        raw_name = str(data.get("passenger_name", "")).strip()
+        if not raw_name:
+            return jsonify({"error": "Passenger name is required."}), 400
+        raw_passengers = [{
+            "name": raw_name,
+            "age": 20,
+            "gender": "Prefer not to say"
         }]
 
-    if (
-        not isinstance(passengers, list)
-        or not 1 <= len(passengers) <= 10
-    ):
+    if not 1 <= len(raw_passengers) <= MAX_PASSENGERS:
         return jsonify({
-            "error": "Enter details for 1 to 10 passengers."
+            "error": f"Choose between 1 and {MAX_PASSENGERS} passengers."
         }), 400
 
-    allowed_genders = {
-        "Male",
-        "Female",
-        "Other",
-        "Prefer not to say"
-    }
-
-    validated_passengers = []
-
-    for index, passenger in enumerate(passengers, start=1):
-        if not isinstance(passenger, dict):
+    passengers = []
+    for index, person in enumerate(raw_passengers, start=1):
+        if not isinstance(person, dict):
             return jsonify({
                 "error": f"Passenger {index} details are invalid."
             }), 400
 
-        name = passenger.get("name")
-        age = passenger.get("age")
-        gender = passenger.get("gender")
+        name = str(person.get("name", person.get("passenger_name", ""))).strip()
+        age = person.get("age")
+        gender = str(person.get("gender", "Prefer not to say")).strip()
 
-        if not isinstance(name, str) or not name.strip():
+        if not name or len(name) < 2 or len(name) > 100:
             return jsonify({
-                "error": f"Enter the name of passenger {index}."
+                "error": f"Enter a valid name for passenger {index}."
             }), 400
 
-        if (
-            isinstance(age, bool)
-            or not isinstance(age, int)
-            or not 0 <= age <= 120
-        ):
+        try:
+            age = int(age)
+        except (TypeError, ValueError):
             return jsonify({
-                "error": f"Passenger {index} age must be between 0 and 120."
+                "error": f"Enter a valid age for passenger {index}."
             }), 400
 
-        if not isinstance(gender, str) or gender not in allowed_genders:
+        if not 0 <= age <= 120:
+            return jsonify({
+                "error": f"Passenger {index} age must be from 0 to 120."
+            }), 400
+
+        if gender not in VALID_GENDERS:
             return jsonify({
                 "error": f"Select a valid gender for passenger {index}."
             }), 400
 
-        validated_passengers.append({
-            "name": name.strip(),
+        passengers.append({
+            "name": name,
             "age": age,
             "gender": gender
         })
 
-    passenger_count = len(validated_passengers)
-
     try:
-        # BEGIN IMMEDIATE obtains SQLite's write reservation before
-        # checking seats. Competing booking transactions must wait.
         with get_connection() as conn:
+            # BEGIN IMMEDIATE acquires SQLite's write reservation before
+            # checking seats, serializing competing booking transactions.
             conn.execute("BEGIN IMMEDIATE")
 
             train = conn.execute(
-                """
-                SELECT id, number, name, fare, seats
-                FROM trains
-                WHERE id = ?
-                """,
+                "SELECT id, name, fare, seats FROM trains WHERE id = ?",
                 (train_id,)
             ).fetchone()
 
@@ -396,102 +345,92 @@ def create_booking():
                 conn.rollback()
                 return jsonify({"error": "Train not found."}), 404
 
-            if train["seats"] < passenger_count:
-                available = train["seats"]
-                conn.rollback()
+            passenger_count = len(passengers)
 
+            if train["seats"] < passenger_count:
+                conn.rollback()
                 return jsonify({
-                    "error": "Not enough seats for all passengers.",
-                    "requested_seats": passenger_count,
-                    "available_seats": available
+                    "error": (
+                        f"Only {train['seats']} seats are available; "
+                        f"{passenger_count} are required."
+                    )
                 }), 409
 
-            # Atomic conditional update: never reduce seats below zero.
-            update = conn.execute(
-                """
+            # Conditional update provides a second guard against
+            # allocating more seats than the train has.
+            cursor = conn.execute("""
                 UPDATE trains
                 SET seats = seats - ?
                 WHERE id = ? AND seats >= ?
-                """,
-                (passenger_count, train_id, passenger_count)
-            )
+            """, (passenger_count, train_id, passenger_count))
 
-            if update.rowcount != 1:
+            if cursor.rowcount != 1:
                 conn.rollback()
                 return jsonify({
-                    "error": "Seats are no longer available. Please search again."
+                    "error": "Not enough seats remain. Please search again."
                 }), 409
 
-            # One booking record represents the entire group.
-            cursor = conn.execute(
-                """
-                INSERT INTO bookings (passenger_name, train_id, status)
-                VALUES (?, ?, 'Confirmed')
-                """,
-                (validated_passengers[0]["name"], train_id)
-            )
+            total_fare = float(train["fare"]) * passenger_count
 
-            booking_id = cursor.lastrowid
+            group_cursor = conn.execute("""
+                INSERT INTO booking_groups
+                    (train_id, passenger_count, total_fare)
+                VALUES (?, ?, ?)
+            """, (train_id, passenger_count, total_fare))
 
-            # Store every passenger against the group booking.
+            group_id = group_cursor.lastrowid
+
             conn.executemany(
                 """
                 INSERT INTO booking_passengers
-                    (booking_id, name, age, gender)
-                VALUES (?, ?, ?, ?)
+                    (booking_id, group_id, name, age, gender)
+                VALUES (?, ?, ?, ?, ?)
                 """,
                 [
                     (
-                        booking_id,
-                        passenger["name"],
-                        passenger["age"],
-                        passenger["gender"]
+                        None,
+                        group_id,
+                        person["name"],
+                        person["age"],
+                        person["gender"],
                     )
-                    for passenger in validated_passengers
-                ]
+                    for person in passengers
+                ],
             )
 
+            # Preserve compatibility with older booking history that
+            # reads from the original bookings table.
+            # New family reservations are stored in the new group tables.
             conn.commit()
 
-            remaining_seats = train["seats"] - passenger_count
-            total_fare = train["fare"] * passenger_count
-
         return jsonify({
-            "message": "Booking successful!",
-            "booking": {
-                "booking_id": booking_id,
-                "train_id": train_id,
-                "train_number": train["number"],
-                "train_name": train["name"],
-                "passenger_count": passenger_count,
-                "passengers": validated_passengers,
-                "fare_per_passenger": train["fare"],
-                "total_fare": total_fare,
-                "status": "Confirmed"
-            },
-            "seats_remaining": remaining_seats
+            "message": (
+                "Family booking successful!"
+                if len(passengers) > 1 else "Booking successful!"
+            ),
+            "booking_id": group_id,
+            "passenger_count": len(passengers),
+            "passengers": passengers,
+            "train_name": train["name"],
+            "fare_per_passenger": float(train["fare"]),
+            "total_fare": total_fare
         }), 201
 
     except sqlite3.Error:
         app.logger.exception("Booking database error")
-        return jsonify({
-            "error": "Could not complete booking. Please try again."
-        }), 500
+        return jsonify({"error": "Could not complete booking."}), 500
 
-
-# ---------------- BOOKING HISTORY ----------------
 
 @app.get("/api/bookings")
 def get_bookings():
     try:
         with get_connection() as conn:
-            rows = conn.execute("""
+            # Existing single-passenger bookings remain visible.
+            old_rows = conn.execute("""
                 SELECT
                     b.booking_id,
                     b.status,
                     b.passenger_name,
-                    b.train_id,
-                    t.number AS train_number,
                     t.name AS train_name,
                     t.source,
                     t.destination,
@@ -501,117 +440,165 @@ def get_bookings():
                 ORDER BY b.booking_id DESC
             """).fetchall()
 
-            result = []
+            legacy_bookings = []
+            for row in old_rows:
+                item = dict(row)
+                item["passengers"] = [{
+                    "name": item["passenger_name"],
+                    "age": None,
+                    "gender": None
+                }]
+                item["passenger_count"] = 1
+                item["total_fare"] = float(item["fare"])
+                item["booking_type"] = "single"
+                legacy_bookings.append(item)
 
-            for row in rows:
-                booking = dict(row)
+            # New family bookings.
+            groups = conn.execute("""
+                SELECT
+                    g.group_id AS booking_id,
+                    g.status,
+                    g.passenger_count,
+                    g.total_fare,
+                    t.name AS train_name,
+                    t.source,
+                    t.destination,
+                    t.fare
+                FROM booking_groups g
+                JOIN trains t ON t.id = g.train_id
+                ORDER BY g.group_id DESC
+            """).fetchall()
 
-                passenger_rows = conn.execute("""
+            family_bookings = []
+            for group in groups:
+                item = dict(group)
+                passengers = conn.execute("""
                     SELECT name, age, gender
                     FROM booking_passengers
-                    WHERE booking_id = ?
+                    WHERE group_id = ?
                     ORDER BY passenger_id
-                """, (booking["booking_id"],)).fetchall()
+                """, (item["booking_id"],)).fetchall()
 
-                booking["passengers"] = [
-                    dict(passenger) for passenger in passenger_rows
-                ]
-
-                booking["passenger_count"] = len(passenger_rows)
-                booking["total_fare"] = (
-                    booking["fare"] * booking["passenger_count"]
+                item["passengers"] = [dict(p) for p in passengers]
+                item["passenger_name"] = ", ".join(
+                    p["name"] for p in item["passengers"]
                 )
+                item["booking_type"] = "family"
+                family_bookings.append(item)
 
-                result.append(booking)
+        # A unified response for the current frontend.
+        all_bookings = legacy_bookings + family_bookings
+        all_bookings.sort(
+            key=lambda booking: booking["booking_id"],
+            reverse=True
+        )
 
-        return jsonify({
-            "count": len(result),
-            "bookings": result
-        })
+        return jsonify({"bookings": all_bookings})
 
     except sqlite3.Error:
         app.logger.exception("Loading bookings failed")
-        return jsonify({
-            "error": "Could not load bookings."
-        }), 500
+        return jsonify({"error": "Could not load bookings."}), 500
 
 
-# ---------------- OS SYNCHRONIZATION DEMO ----------------
+
+# ---------------- SYNCHRONIZATION DEMONSTRATION ----------------
 
 @app.get("/api/demo/concurrency")
 def concurrency_demo():
+    """
+    Simulate concurrent booking requests competing for a fixed number
+    of seats. A lock protects the shared seat counter.
+
+    This is an isolated simulation and does not modify the real database.
+    """
     try:
         attempts = int(request.args.get("attempts", 10))
         initial_seats = int(request.args.get("seats", 5))
-    except ValueError:
+
+        if not 1 <= attempts <= 50:
+            return jsonify({
+                "error": "Requests must be between 1 and 50."
+            }), 400
+
+        if not 0 <= initial_seats <= 50:
+            return jsonify({
+                "error": "Seats must be between 0 and 50."
+            }), 400
+
+    except (ValueError, TypeError):
         return jsonify({
-            "error": "Attempts and seats must be integers."
+            "error": "Requests and seats must be whole numbers."
         }), 400
 
-    if not 1 <= attempts <= 50 or not 0 <= initial_seats <= 50:
-        return jsonify({
-            "error": "Use 1-50 attempts and 0-50 seats."
-        }), 400
-
-    # Independent demo state: real train seats are untouched.
+    # Shared state accessed by all worker threads.
     state = {"seats": initial_seats}
-    demo_lock = Lock()
-    start_together = Barrier(attempts)
+    lock = Lock()
+    start_barrier = Barrier(attempts)
     results = []
 
-    def simulated_request(request_id):
-        # Make worker threads wait until they can start together.
-        start_together.wait()
+    def attempt_booking(request_number):
+        # Make requests start together to demonstrate contention.
+        start_barrier.wait()
 
-        # CRITICAL SECTION: shared seat check and decrement.
-        with demo_lock:
-            if state["seats"] > 0:
+        # CRITICAL SECTION:
+        # Only one thread can check and update seats at a time.
+        with lock:
+            seats_before = state["seats"]
+
+            if seats_before > 0:
                 state["seats"] -= 1
-                status = "SUCCESS"
+                result_status = "SUCCESS"
             else:
-                status = "REJECTED"
+                result_status = "REJECTED"
 
+            # Record the result while still holding the lock.
+            # This preserves the actual order in which requests
+            # access the shared seat counter.
             results.append({
-                "request_id": request_id,
-                "status": status,
-                "seats_remaining": state["seats"]
+                "request": request_number,
+                "result": result_status,
+                "seats_before": seats_before,
+                "remaining_seats": state["seats"],
+                "execution_order": len(results) + 1
             })
 
     try:
         with ThreadPoolExecutor(max_workers=attempts) as executor:
             futures = [
-                executor.submit(simulated_request, request_id)
-                for request_id in range(1, attempts + 1)
+                executor.submit(attempt_booking, number)
+                for number in range(1, attempts + 1)
             ]
 
+            # Surface any unexpected worker errors.
             for future in futures:
                 future.result()
 
     except Exception:
-        app.logger.exception("Concurrency demo failed")
+        app.logger.exception("Synchronization demo failed")
         return jsonify({
-            "error": "The concurrency simulation failed."
+            "error": "The synchronization simulation failed."
         }), 500
 
-    results.sort(key=lambda item: item["request_id"])
-
     successful = sum(
-        result["status"] == "SUCCESS"
+        result["result"] == "SUCCESS"
+        for result in results
+    )
+    rejected = sum(
+        result["result"] == "REJECTED"
         for result in results
     )
 
     return jsonify({
-        "message": "Concurrent booking simulation completed.",
-        "attempts": attempts,
+        "demo": "Thread synchronization using a lock",
         "initial_seats": initial_seats,
+        "total_requests": attempts,
         "successful_bookings": successful,
-        "rejected_requests": attempts - successful,
-        "seats_remaining": state["seats"],
-        "synchronization": (
-            "A threading.Lock protects the shared seat counter."
-        ),
+        "rejected_requests": rejected,
+        "remaining_seats": state["seats"],
+        "real_database_changed": False,
         "results": results
-    })
+    }), 200
+
 
 
 if __name__ == "__main__":
