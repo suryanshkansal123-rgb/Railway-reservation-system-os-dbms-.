@@ -70,7 +70,9 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (formKicker) {
-            formKicker.textContent = isSignup ? "JOIN THE JOURNEY" : "YOUR JOURNEY CONTINUES";
+            formKicker.textContent = isSignup
+                ? "JOIN THE JOURNEY"
+                : "YOUR JOURNEY CONTINUES";
         }
 
         if (formDescription) {
@@ -83,20 +85,40 @@ document.addEventListener("DOMContentLoaded", () => {
             submitLabel.textContent = isSignup ? "Create Account" : "Log In";
         }
 
+        // Show the correct fields for each mode.
         if (usernameGroup) usernameGroup.hidden = !isSignup;
-        if (confirmGroup) confirmGroup.hidden = !isSignup;
-        if (emailGroup) emailGroup.hidden = true;
+        if (emailGroup) emailGroup.hidden = !isSignup;
         if (identifierGroup) identifierGroup.hidden = isSignup;
+        if (confirmGroup) confirmGroup.hidden = !isSignup;
 
+        // Set required fields correctly.
         if (usernameInput) usernameInput.required = isSignup;
-        if (confirmPasswordInput) confirmPasswordInput.required = isSignup;
+        if (emailInput) emailInput.required = isSignup;
         if (identifierInput) identifierInput.required = !isSignup;
+        if (passwordInput) {
+            passwordInput.required = true;
+            passwordInput.autocomplete = isSignup
+                ? "new-password"
+                : "current-password";
+        }
+        if (confirmPasswordInput) {
+            confirmPasswordInput.required = isSignup;
+        }
 
-        // Clear stale values when switching modes.
+        // Hidden fields must not block form submission.
+        if (usernameInput) usernameInput.disabled = !isSignup;
+        if (emailInput) emailInput.disabled = !isSignup;
+        if (identifierInput) identifierInput.disabled = isSignup;
+        if (confirmPasswordInput) {
+            confirmPasswordInput.disabled = !isSignup;
+        }
+
+        // Clear old values when switching modes.
         if (usernameInput) usernameInput.value = "";
-        if (confirmPasswordInput) confirmPasswordInput.value = "";
-        if (passwordInput) passwordInput.value = "";
+        if (emailInput) emailInput.value = "";
         if (identifierInput) identifierInput.value = "";
+        if (passwordInput) passwordInput.value = "";
+        if (confirmPasswordInput) confirmPasswordInput.value = "";
     }
 
     async function parseResponse(response) {
@@ -181,16 +203,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const data = await parseResponse(response);
 
             if (currentMode === "signup") {
+                const registeredEmail = payload.email;
+
                 showMessage(
                     data.message || "Account created! You can now log in.",
                     "success"
                 );
 
-                // Switch to login while preserving the email for convenience.
-                const registeredEmail = payload.email;
                 form.reset();
                 switchMode("login");
 
+                // Keep the newly registered email ready for login.
                 if (identifierInput) {
                     identifierInput.value = registeredEmail;
                 }
@@ -198,7 +221,9 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (passwordInput) passwordInput.focus();
             } else {
                 if (!data.user) {
-                    throw new Error("Login response did not contain user details.");
+                    throw new Error(
+                        "Login response did not contain user details."
+                    );
                 }
 
                 sessionStorage.setItem(
@@ -208,7 +233,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
                 showMessage(data.message || "Login successful!", "success");
 
-                // Redirect only if your project has a home page.
                 window.location.href = "index.html";
             }
         } catch (error) {
@@ -217,7 +241,9 @@ document.addEventListener("DOMContentLoaded", () => {
                     "Cannot connect to the server. Make sure Flask is running on port 5000."
                 );
             } else {
-                showMessage(error.message || "Something went wrong. Please try again.");
+                showMessage(
+                    error.message || "Something went wrong. Please try again."
+                );
             }
 
             console.error("Authentication error:", error);
@@ -241,7 +267,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         button.addEventListener("click", () => {
             const shouldShow = input.type === "password";
+
             input.type = shouldShow ? "text" : "password";
+            button.textContent = shouldShow ? "Hide" : "Show";
+
             button.setAttribute(
                 "aria-label",
                 shouldShow ? "Hide password" : "Show password"
@@ -264,6 +293,6 @@ document.addEventListener("DOMContentLoaded", () => {
     setupPasswordToggle(togglePassword, passwordInput);
     setupPasswordToggle(toggleConfirmPassword, confirmPasswordInput);
 
-    // Start in login mode.
+    // Start on the login page.
     switchMode("login");
 });
