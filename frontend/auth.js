@@ -4,295 +4,194 @@ const API_URL = "http://127.0.0.1:5000";
 document.addEventListener("DOMContentLoaded", () => {
     const form = document.getElementById("auth-form");
 
+    if (!form) {
+        console.error("Could not find #auth-form. Check login.html.");
+        return;
+    }
+
     const loginTab = document.getElementById("login-tab");
     const signupTab = document.getElementById("signup-tab");
-
-    const formTitle = document.getElementById("form-title");
-    const formKicker = document.getElementById("form-kicker");
-    const formDescription = document.getElementById("form-description");
-    const submitLabel = document.getElementById("submit-label");
+    const username = document.getElementById("username");
+    const email = document.getElementById("email");
+    const identifier = document.getElementById("login-identifier");
+    const password = document.getElementById("password");
+    const confirmPassword = document.getElementById("confirm-password");
+    const message = document.getElementById("form-message");
     const submitButton = document.getElementById("submit-button");
-    const formMessage = document.getElementById("form-message");
+    const submitLabel = document.getElementById("submit-label");
 
-    const usernameGroup = document.getElementById("username-group");
-    const emailGroup = document.getElementById("email-group");
-    const identifierGroup = document.getElementById("identifier-group");
-    const confirmGroup = document.getElementById("confirm-group");
+    let mode = "login";
+    let submitting = false;
 
-    const usernameInput = document.getElementById("username");
-    const emailInput = document.getElementById("email");
-    const identifierInput = document.getElementById("login-identifier");
-    const passwordInput = document.getElementById("password");
-    const confirmPasswordInput = document.getElementById("confirm-password");
-
-    const togglePassword = document.getElementById("toggle-password");
-    const toggleConfirmPassword = document.getElementById("toggle-confirm-password");
-
-    let currentMode = "login";
-    let isSubmitting = false;
-
-    function showMessage(message, type = "error") {
-        if (!formMessage) return;
-
-        formMessage.textContent = message;
-        formMessage.className = `form-message ${type}`;
-        formMessage.hidden = false;
+    function showMessage(text, success = false) {
+        message.textContent = text;
+        message.className = success
+            ? "form-message success"
+            : "form-message error";
+        message.hidden = false;
     }
 
-    function clearMessage() {
-        if (!formMessage) return;
+    function switchMode(nextMode) {
+        mode = nextMode;
+        const signup = mode === "signup";
 
-        formMessage.textContent = "";
-        formMessage.hidden = true;
-        formMessage.className = "form-message";
-    }
+        document.getElementById("username-group").hidden = !signup;
+        document.getElementById("email-group").hidden = !signup;
+        document.getElementById("identifier-group").hidden = signup;
+        document.getElementById("confirm-group").hidden = !signup;
 
-    function switchMode(mode) {
-        if (isSubmitting) return;
+        username.disabled = !signup;
+        email.disabled = !signup;
+        identifier.disabled = signup;
 
-        currentMode = mode;
-        clearMessage();
+        username.required = signup;
+        email.required = signup;
+        identifier.required = !signup;
+        confirmPassword.disabled = !signup;
+        confirmPassword.required = signup;
 
-        const isSignup = mode === "signup";
+        loginTab.classList.toggle("active", !signup);
+        signupTab.classList.toggle("active", signup);
 
-        if (loginTab) {
-            loginTab.classList.toggle("active", !isSignup);
-            loginTab.setAttribute("aria-selected", String(!isSignup));
-        }
+        document.getElementById("form-title").textContent =
+            signup ? "Create Account" : "Welcome Back";
 
-        if (signupTab) {
-            signupTab.classList.toggle("active", isSignup);
-            signupTab.setAttribute("aria-selected", String(isSignup));
-        }
+        document.getElementById("form-kicker").textContent =
+            signup ? "JOIN THE JOURNEY" : "YOUR JOURNEY CONTINUES";
 
-        if (formTitle) {
-            formTitle.textContent = isSignup ? "Create Account" : "Welcome Back";
-        }
-
-        if (formKicker) {
-            formKicker.textContent = isSignup
-                ? "JOIN THE JOURNEY"
-                : "YOUR JOURNEY CONTINUES";
-        }
-
-        if (formDescription) {
-            formDescription.textContent = isSignup
+        document.getElementById("form-description").textContent =
+            signup
                 ? "Create your account to plan your next journey."
                 : "Log in to continue your railway journey.";
-        }
 
-        if (submitLabel) {
-            submitLabel.textContent = isSignup ? "Create Account" : "Log In";
-        }
-
-        // Show the correct fields for each mode.
-        if (usernameGroup) usernameGroup.hidden = !isSignup;
-        if (emailGroup) emailGroup.hidden = !isSignup;
-        if (identifierGroup) identifierGroup.hidden = isSignup;
-        if (confirmGroup) confirmGroup.hidden = !isSignup;
-
-        // Set required fields correctly.
-        if (usernameInput) usernameInput.required = isSignup;
-        if (emailInput) emailInput.required = isSignup;
-        if (identifierInput) identifierInput.required = !isSignup;
-        if (passwordInput) {
-            passwordInput.required = true;
-            passwordInput.autocomplete = isSignup
-                ? "new-password"
-                : "current-password";
-        }
-        if (confirmPasswordInput) {
-            confirmPasswordInput.required = isSignup;
-        }
-
-        // Hidden fields must not block form submission.
-        if (usernameInput) usernameInput.disabled = !isSignup;
-        if (emailInput) emailInput.disabled = !isSignup;
-        if (identifierInput) identifierInput.disabled = isSignup;
-        if (confirmPasswordInput) {
-            confirmPasswordInput.disabled = !isSignup;
-        }
-
-        // Clear old values when switching modes.
-        if (usernameInput) usernameInput.value = "";
-        if (emailInput) emailInput.value = "";
-        if (identifierInput) identifierInput.value = "";
-        if (passwordInput) passwordInput.value = "";
-        if (confirmPasswordInput) confirmPasswordInput.value = "";
+        submitLabel.textContent = signup ? "Create Account" : "Log In";
+        password.autocomplete = signup ? "new-password" : "current-password";
+        message.hidden = true;
     }
 
-    async function parseResponse(response) {
-        const data = await response.json().catch(() => ({}));
+    loginTab.addEventListener("click", () => switchMode("login"));
+    signupTab.addEventListener("click", () => switchMode("signup"));
 
-        if (!response.ok) {
-            throw new Error(
-                data.error || data.message || `Request failed (${response.status})`
-            );
-        }
+    document.getElementById("toggle-password")?.addEventListener("click", () => {
+        password.type =
+            password.type === "password" ? "text" : "password";
+    });
 
-        return data;
-    }
+    document.getElementById("toggle-confirm-password")?.addEventListener("click", () => {
+        confirmPassword.type =
+            confirmPassword.type === "password" ? "text" : "password";
+    });
 
-    async function handleSubmit(event) {
+    form.addEventListener("submit", async (event) => {
         event.preventDefault();
 
-        if (isSubmitting) return;
+        if (submitting) return;
 
-        clearMessage();
-
-        const password = passwordInput?.value ?? "";
-
-        let payload;
+        const pass = password.value;
         let endpoint;
+        let payload;
 
-        if (currentMode === "signup") {
-            const name = usernameInput?.value.trim() ?? "";
-            const email = emailInput?.value.trim().toLowerCase() ?? "";
-            const confirmPassword = confirmPasswordInput?.value ?? "";
+        if (mode === "signup") {
+            payload = {
+                name: username.value.trim(),
+                email: email.value.trim().toLowerCase(),
+                password: pass
+            };
 
-            if (!name || !email || !password || !confirmPassword) {
+            if (!payload.name || !payload.email || !pass ||
+                !confirmPassword.value) {
                 showMessage("Please fill in all required fields.");
                 return;
             }
 
-            if (password.length < 6) {
+            if (pass.length < 6) {
                 showMessage("Password must contain at least 6 characters.");
                 return;
             }
 
-            if (password !== confirmPassword) {
+            if (pass !== confirmPassword.value) {
                 showMessage("Passwords do not match.");
                 return;
             }
 
-            payload = { name, email, password };
             endpoint = `${API_URL}/api/signup`;
         } else {
-            const email = identifierInput?.value.trim().toLowerCase() ?? "";
+            payload = {
+                email: identifier.value.trim().toLowerCase(),
+                password: pass
+            };
 
-            if (!email || !password) {
-                showMessage("Please enter your email and password.");
+            if (!payload.email || !pass) {
+                showMessage("Enter your email and password.");
                 return;
             }
 
-            payload = { email, password };
             endpoint = `${API_URL}/api/login`;
         }
 
-        isSubmitting = true;
-
-        if (submitButton) {
-            submitButton.disabled = true;
-            submitButton.setAttribute("aria-busy", "true");
-        }
-
-        if (submitLabel) {
-            submitLabel.textContent =
-                currentMode === "signup" ? "Creating Account..." : "Logging In...";
-        }
+        submitting = true;
+        submitButton.disabled = true;
+        submitLabel.textContent =
+            mode === "signup" ? "Creating Account..." : "Logging In...";
 
         try {
             const response = await fetch(endpoint, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
 
-            const data = await parseResponse(response);
+            const data = await response.json();
 
-            if (currentMode === "signup") {
-                const registeredEmail = payload.email;
+            if (!response.ok) {
+                throw new Error(
+                    data.error || data.message || `Request failed (${response.status})`
+                );
+            }
 
+            if (mode === "signup") {
                 showMessage(
-                    data.message || "Account created! You can now log in.",
-                    "success"
+                    data.message || "Account created. Please log in.",
+                    true
                 );
 
-                form.reset();
                 switchMode("login");
-
-                // Keep the newly registered email ready for login.
-                if (identifierInput) {
-                    identifierInput.value = registeredEmail;
-                }
-
-                if (passwordInput) passwordInput.focus();
-            } else {
-                if (!data.user) {
-                    throw new Error(
-                        "Login response did not contain user details."
-                    );
-                }
-
-                sessionStorage.setItem(
-                    "railwayUser",
-                    JSON.stringify(data.user)
-                );
-
-                showMessage(data.message || "Login successful!", "success");
-
-                window.location.href = "index.html";
-            }
-        } catch (error) {
-            if (error instanceof TypeError) {
-                showMessage(
-                    "Cannot connect to the server. Make sure Flask is running on port 5000."
-                );
-            } else {
-                showMessage(
-                    error.message || "Something went wrong. Please try again."
-                );
+                identifier.value = payload.email;
+                password.value = "";
+                return;
             }
 
-            console.error("Authentication error:", error);
-        } finally {
-            isSubmitting = false;
-
-            if (submitButton) {
-                submitButton.disabled = false;
-                submitButton.removeAttribute("aria-busy");
+            if (!data.user) {
+                throw new Error("The backend did not return user details.");
             }
 
-            if (submitLabel) {
-                submitLabel.textContent =
-                    currentMode === "signup" ? "Create Account" : "Log In";
-            }
-        }
-    }
-
-    function setupPasswordToggle(button, input) {
-        if (!button || !input) return;
-
-        button.addEventListener("click", () => {
-            const shouldShow = input.type === "password";
-
-            input.type = shouldShow ? "text" : "password";
-            button.textContent = shouldShow ? "Hide" : "Show";
-
-            button.setAttribute(
-                "aria-label",
-                shouldShow ? "Hide password" : "Show password"
+            sessionStorage.setItem(
+                "railwayUser",
+                JSON.stringify(data.user)
             );
-        });
-    }
 
-    if (loginTab) {
-        loginTab.addEventListener("click", () => switchMode("login"));
-    }
+            if (data.token) {
+                sessionStorage.setItem("railwayToken", data.token);
+            }
 
-    if (signupTab) {
-        signupTab.addEventListener("click", () => switchMode("signup"));
-    }
+            window.location.href = "./index.html";
 
-    if (form) {
-        form.addEventListener("submit", handleSubmit);
-    }
+        } catch (error) {
+            console.error("Login error:", error);
 
-    setupPasswordToggle(togglePassword, passwordInput);
-    setupPasswordToggle(toggleConfirmPassword, confirmPasswordInput);
+            showMessage(
+                error instanceof TypeError
+                    ? "Cannot connect to Flask. Check that it is running on port 5000."
+                    : error.message || "Login failed."
+            );
+        } finally {
+            submitting = false;
+            submitButton.disabled = false;
+            submitLabel.textContent =
+                mode === "signup" ? "Create Account" : "Log In";
+        }
+    });
 
-    // Start on the login page.
     switchMode("login");
+    console.log("AUTH.JS LOADED — current login handler attached.");
 });

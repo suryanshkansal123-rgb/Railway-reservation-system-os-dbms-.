@@ -1,1044 +1,810 @@
 
 "use strict";
 
-// RailEase — Railway Reservation System
-// Flask backend: http://127.0.0.1:5000
+/*
+ * RailEase - Railway Reservation System
+ * Backend: Flask at http://127.0.0.1:5000
+ * Frontend: http://127.0.0.1:5500
+ */
 
-const API = "http://127.0.0.1:5000";
-const REQUEST_TIMEOUT = 10000;
+const API_BASE = "http://127.0.0.1:5000/api";
+const TOKEN_KEY = "railwayToken";
 
-// ---------- HTML elements ----------
+const state = {
+  trains: [],
+  selectedTrain: null,
+  bookings: [],
+  busy: false
+};
 
-const searchForm = document.getElementById("search-form");
-const sourceInput = document.getElementById("source");
-const destinationInput = document.getElementById("destination");
-const dateInput = document.getElementById("journey-date");
-const budgetInput = document.getElementById("budget");
-const swapButton = document.getElementById("swap-stations");
-const searchButton = document.getElementById("search-button");
+const $ = (id) => document.getElementById(id);
 
-const trainList = document.getElementById("train-list");
-const searchMessage = document.getElementById("search-message");
-const resultCount = document.getElementById("result-count");
-
-const bookingList = document.getElementById("booking-list");
-const bookingMessage = document.getElementById("booking-message");
-const refreshBookingsButton = document.getElementById("refresh-bookings");
-
-const bookingDialog = document.getElementById("booking-dialog");
-const passengerForm = document.getElementById("passenger-form");
-const closeBookingButton = document.getElementById("close-booking");
-const confirmBookingButton = document.getElementById("confirm-booking");
-
-const passengerCountInput = document.getElementById("passenger-count");
-const passengerDetailsContainer = document.getElementById(
-    "passenger-details-container"
-);
-const familyFareSummary = document.getElementById("family-fare-summary");
-
-const selectedTrainSummary = document.getElementById(
-    "selected-train-summary"
-);
-const selectedTrainPreview = document.getElementById(
-    "selected-train-preview"
-);
-const selectedTrainName = document.getElementById("selected-train-name");
-const selectedTrainRoute = document.getElementById("selected-train-route");
-const selectedTrainFare = document.getElementById("selected-train-fare");
-
-const connectionLabel = document.getElementById("connection-label");
-const toastContainer = document.getElementById("toast-container");
-
-// Recommendation controls
-const priceWeightInput = document.getElementById("priceWeight");
-const durationWeightInput = document.getElementById("durationWeight");
-const availabilityWeightInput = document.getElementById("availabilityWeight");
-const timingWeightInput = document.getElementById("timingWeight");
-const preferredTimeInput = document.getElementById("preferredTime");
-const resetPreferencesButton = document.getElementById("reset-preferences");
-
-// ---------- Application state ----------
-
-let currentTrains = [];
-let selectedTrain = null;
-let searchNumber = 0;
-
-// ---------- Helpers ----------
-
-function makeElement(tag, className = "", text = "") {
-    const element = document.createElement(tag);
-
-    if (className) {
-        element.className = className;
-    }
-
-    if (text !== undefined && text !== null) {
-        element.textContent = String(text);
-    }
-
-    return element;
+function getToken() {
+  return sessionStorage.getItem(TOKEN_KEY) ||
+    localStorage.getItem(TOKEN_KEY) ||
+    "";
 }
 
-function formatMoney(amount) {
-    const value = Number(amount);
+function setMessage(id, message, type = "") {
+  const element = $(id);
+  if (!element) return;
 
-    if (!Number.isFinite(value)) {
-        return "Fare unavailable";
-    }
+  element.textContent = message;
+  element.classList.remove("success", "error", "warning");
 
-    return new Intl.NumberFormat("en-IN", {
-        style: "currency",
-        currency: "INR",
-        maximumFractionDigits: 2
-    }).format(value);
+  if (type) element.classList.add(type);
 }
-
-function showToast(message, type = "info") {
-    if (!toastContainer) {
-        console.log(message);
-        return;
-    }
-
-    const toast = makeElement("div", `toast toast-${type}`, message);
-    toast.setAttribute("role", "status");
-    toastContainer.appendChild(toast);
-
-    window.setTimeout(() => toast.remove(), 4000);
-}
-
-function setConnectionStatus(connected, message) {
-    if (!connectionLabel) return;
-
-    connectionLabel.textContent = message;
-
-    const container = connectionLabel.closest(".system-status");
-
-    if (container) {
-        container.classList.toggle("is-connected", connected);
-        container.classList.toggle("is-disconnected", !connected);
-    }
-}
-
-function setSearchLoading(isLoading) {
-    if (!searchButton) return;
-
-    searchButton.disabled = isLoading;
-
-    const buttonText = searchButton.querySelector("[data-button-text]");
-
-    if (buttonText) {
-        buttonText.textContent = isLoading ? "Searching..." : "Search trains";
-    } else {
-        searchButton.textContent = isLoading ? "Searching..." : "Search trains →";
-    }
-}
-
-function setBookingLoading(isLoading) {
-    if (!confirmBookingButton) return;
-
-    confirmBookingButton.disabled = isLoading;
-    confirmBookingButton.textContent = isLoading
-        ? "Booking..."
-        : "Confirm booking →";
-}
-
-// ---------- API requests ----------
 
 async function apiRequest(path, options = {}) {
-    const controller = new AbortController();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
 
-    const timeoutId = window.setTimeout(
-        () => controller.abort(),
-        REQUEST_TIMEOUT
-    );
+  const token = getToken();
 
-    try {
-        const response = await fetch(`${API}${path}`, {
-            ...options,
-            signal: controller.signal,
-            headers: {
-                Accept: "application/json",
-                ...(options.body ? { "Content-Type": "application/json" } : {}),
-                ...(options.headers || {})
-            }
-        });
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
-        const responseText = await response.text();
-        let data = {};
+  let response;
 
-        if (responseText) {
-            try {
-                data = JSON.parse(responseText);
-            } catch {
-                throw new Error(
-                    "The server returned an invalid response. Check Flask."
-                );
-            }
-        }
-
-        if (!response.ok) {
-            throw new Error(
-                data.error || data.message || `Server error (${response.status})`
-            );
-        }
-
-        return data;
-    } catch (error) {
-        if (error.name === "AbortError") {
-            throw new Error("Request timed out. Check whether Flask is running.");
-        }
-
-        if (error instanceof TypeError) {
-            throw new Error(
-                "Cannot connect to Flask. Check the backend server and API address."
-            );
-        }
-
-        throw error;
-    } finally {
-        window.clearTimeout(timeoutId);
-    }
-}
-
-// ---------- Recommendation preferences ----------
-
-function getWeight(input, defaultValue) {
-    if (!input) return defaultValue;
-
-    const value = Number(input.value);
-
-    if (!Number.isInteger(value) || value < 1 || value > 5) {
-        return defaultValue;
-    }
-
-    return value;
-}
-
-function updateWeightOutput(inputId, outputId) {
-    const input = document.getElementById(inputId);
-    const output = document.getElementById(outputId);
-
-    if (!input || !output) return;
-
-    const update = () => {
-        output.textContent = `${input.value} / 5`;
-    };
-
-    input.addEventListener("input", update);
-    update();
-}
-
-function getRecommendationPreferences() {
-    return {
-        price_weight: getWeight(priceWeightInput, 5),
-        duration_weight: getWeight(durationWeightInput, 4),
-        availability_weight: getWeight(availabilityWeightInput, 3),
-        timing_weight: getWeight(timingWeightInput, 2),
-        preferred_time: preferredTimeInput?.value || ""
-    };
-}
-
-function resetPreferences() {
-    const defaults = [
-        [priceWeightInput, 5],
-        [durationWeightInput, 4],
-        [availabilityWeightInput, 3],
-        [timingWeightInput, 2]
-    ];
-
-    defaults.forEach(([input, value]) => {
-        if (input) {
-            input.value = value;
-            input.dispatchEvent(new Event("input"));
-        }
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers
     });
+  } catch (error) {
+    throw new Error(
+      "Cannot connect to the backend. Make sure Flask is running on port 5000."
+    );
+  }
 
-    if (preferredTimeInput) {
-        preferredTimeInput.value = "08:00";
+  let data = {};
+
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
     }
 
-    showToast("Recommendation preferences reset.", "info");
+    throw new Error(
+      data.error || data.message || `Request failed (${response.status}).`
+    );
+  }
+
+  return data;
 }
 
-updateWeightOutput("priceWeight", "priceValue");
-updateWeightOutput("durationWeight", "durationValue");
-updateWeightOutput("availabilityWeight", "availabilityValue");
-updateWeightOutput("timingWeight", "timingValue");
-
-resetPreferencesButton?.addEventListener("click", resetPreferences);
-
-// ---------- Train search ----------
-
-function clearTrainResults(message = "") {
-    trainList.replaceChildren();
-
-    if (resultCount) {
-        resultCount.textContent = "0 trains";
-    }
-
-    if (message && searchMessage) {
-        searchMessage.textContent = message;
-    }
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  })[character]);
 }
 
-function createScoreBreakdown(train) {
-    const scores = train.component_scores;
+function formatCurrency(value) {
+  const amount = Number(value);
 
-    if (!scores || typeof scores !== "object") {
-        return null;
-    }
+  if (!Number.isFinite(amount)) return "₹—";
 
-    const wrapper = makeElement("div", "score-breakdown");
-    wrapper.appendChild(makeElement("strong", "", "Score breakdown"));
-
-    const labels = {
-        price: "Price",
-        duration: "Duration",
-        availability: "Seat availability",
-        timing: "Departure timing"
-    };
-
-    Object.entries(labels).forEach(([key, label]) => {
-        const value = Number(scores[key]);
-
-        if (!Number.isFinite(value)) return;
-
-        const item = makeElement("div", "score-item");
-        const heading = makeElement("div", "score-item-heading");
-
-        heading.appendChild(makeElement("span", "", label));
-        heading.appendChild(
-            makeElement("span", "", `${value.toFixed(1)} / 100`)
-        );
-
-        const bar = makeElement("div", "score-bar");
-        const fill = makeElement("div", "score-bar-fill");
-
-        fill.style.width = `${Math.max(0, Math.min(100, value))}%`;
-
-        bar.appendChild(fill);
-        item.appendChild(heading);
-        item.appendChild(bar);
-        wrapper.appendChild(item);
-    });
-
-    return wrapper;
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0
+  }).format(amount);
 }
 
-function createTrainCard(train, index) {
-    const card = makeElement("article", "train-card");
+function formatDuration(minutes) {
+  const value = Number(minutes);
 
-    // Train name and fare
-    const top = makeElement("div", "train-card-top");
-    const identity = makeElement("div", "train-identity");
+  if (!Number.isFinite(value) || value < 0) {
+    return "Duration unavailable";
+  }
 
-    identity.appendChild(
-        makeElement("span", "train-number", `Train ${train.number ?? "—"}`)
-    );
+  const hours = Math.floor(value / 60);
+  const mins = value % 60;
 
-    identity.appendChild(
-        makeElement("h3", "train-name", train.name || "Unnamed train")
-    );
+  if (hours === 0) return `${mins} min`;
+  if (mins === 0) return `${hours} hr`;
 
-    top.appendChild(identity);
-    top.appendChild(makeElement("span", "train-fare", formatMoney(train.fare)));
-    card.appendChild(top);
-
-    // Recommendation score
-    const score = Number(train.recommendation_score);
-
-    if (Number.isFinite(score)) {
-        const scorePanel = makeElement("div", "recommendation-score");
-        const scoreHeading = makeElement("div", "recommendation-score-heading");
-
-        scoreHeading.appendChild(
-            makeElement(
-                "span",
-                "recommendation-label",
-                index === 0 ? "Top recommendation" : "Recommendation score"
-            )
-        );
-
-        scoreHeading.appendChild(
-            makeElement("strong", "recommendation-value", `${score.toFixed(2)} / 100`)
-        );
-
-        const scoreBar = makeElement("div", "score-bar");
-        const scoreFill = makeElement("div", "score-bar-fill");
-
-        scoreFill.style.width = `${Math.max(0, Math.min(100, score))}%`;
-
-        scoreBar.appendChild(scoreFill);
-        scorePanel.appendChild(scoreHeading);
-        scorePanel.appendChild(scoreBar);
-        card.appendChild(scorePanel);
-    }
-
-    // Route
-    const route = makeElement("div", "train-route");
-
-    const source = makeElement("div", "route-station");
-    source.appendChild(makeElement("span", "route-label", "FROM"));
-    source.appendChild(makeElement("strong", "route-city", train.source || "—"));
-
-    const routeLine = makeElement("div", "route-line");
-    routeLine.appendChild(makeElement("span", "route-line-dot"));
-    routeLine.appendChild(makeElement("span", "route-line-track"));
-    routeLine.appendChild(makeElement("span", "route-line-dot"));
-
-    const destination = makeElement("div", "route-station route-end");
-    destination.appendChild(makeElement("span", "route-label", "TO"));
-    destination.appendChild(
-        makeElement("strong", "route-city", train.destination || "—")
-    );
-
-    route.appendChild(source);
-    route.appendChild(routeLine);
-    route.appendChild(destination);
-    card.appendChild(route);
-
-    // Journey details
-    const details = makeElement("div", "train-details");
-    const duration = Number(train.duration_minutes);
-
-    if (Number.isFinite(duration)) {
-        const hours = Math.floor(duration / 60);
-        const minutes = duration % 60;
-
-        details.appendChild(
-            makeElement("span", "train-detail", `Journey: ${hours}h ${minutes}m`)
-        );
-    }
-
-    if (train.departure_time) {
-        details.appendChild(
-            makeElement("span", "train-detail", `Departure: ${train.departure_time}`)
-        );
-    }
-
-    const seats = Number(train.seats);
-    const seatsText = Number.isFinite(seats)
-        ? `${seats} seat${seats === 1 ? "" : "s"} available`
-        : "Seat count unavailable";
-
-    details.appendChild(
-        makeElement(
-            "span",
-            Number.isFinite(seats) && seats > 0
-                ? "seat-status"
-                : "seat-status seat-unavailable",
-            seatsText
-        )
-    );
-
-    card.appendChild(details);
-
-    // Score explanation
-    const breakdown = createScoreBreakdown(train);
-
-    if (breakdown) {
-        const disclosure = document.createElement("details");
-        disclosure.className = "score-disclosure";
-
-        const summary = document.createElement("summary");
-        summary.textContent = "Why this score?";
-
-        disclosure.appendChild(summary);
-        disclosure.appendChild(breakdown);
-        card.appendChild(disclosure);
-    }
-
-    // Book button
-    const bottom = makeElement("div", "train-card-bottom");
-    const bookButton = makeElement("button", "book-button", "Book Ticket");
-
-    bookButton.type = "button";
-    bookButton.disabled =
-        !Number.isFinite(seats) ||
-        seats <= 0 ||
-        train.id === undefined ||
-        train.id === null;
-
-    bookButton.addEventListener("click", () => openBookingDialog(train));
-
-    bottom.appendChild(bookButton);
-    card.appendChild(bottom);
-
-    return card;
+  return `${hours} hr ${mins} min`;
 }
+
+function formatDate(value) {
+  if (!value) return "Date not specified";
+
+  const parsed = new Date(`${value}T00:00:00`);
+
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  return parsed.toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric"
+  });
+}
+
+function showToast(message, type = "success") {
+  const container = $("toast-container");
+  if (!container) {
+    console.log(message);
+    return;
+  }
+
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
+  toast.textContent = message;
+  container.appendChild(toast);
+
+  window.setTimeout(() => toast.remove(), 4500);
+}
+
+function setButtonBusy(button, busy, busyText = "Please wait...") {
+  if (!button) return;
+
+  if (busy) {
+    button.dataset.originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = busyText;
+  } else {
+    button.disabled = false;
+
+    if (button.dataset.originalText) {
+      button.textContent = button.dataset.originalText;
+      delete button.dataset.originalText;
+    }
+  }
+}
+
+function ensureLoggedIn() {
+  if (!getToken()) {
+    showToast("Please log in before booking or viewing your bookings.", "error");
+    return false;
+  }
+
+  return true;
+}
+
+/* -------------------------------------------------------
+   Train search and recommendations
+------------------------------------------------------- */
 
 async function searchTrains(event) {
-    if (event) {
-        event.preventDefault();
-    }
+  if (event) event.preventDefault();
 
-    const thisSearch = ++searchNumber;
-    const source = sourceInput.value;
-    const destination = destinationInput.value;
-    const budgetText = budgetInput?.value.trim() || "";
+  const source = $("source")?.value || "";
+  const destination = $("destination")?.value || "";
+  const journeyDate = $("journey-date")?.value || "";
+  const budget = $("budget")?.value?.trim() || "";
 
-    if (!source || !destination) {
-        clearTrainResults("Please select both stations.");
-        return;
-    }
+  if (!source || !destination) {
+    setMessage("search-message", "Select both departure and destination cities.", "error");
+    return;
+  }
 
-    if (source === destination) {
-        clearTrainResults(
-            "Please choose different source and destination stations."
-        );
-        showToast("Source and destination must be different.", "error");
-        return;
-    }
+  if (source.toLowerCase() === destination.toLowerCase()) {
+    setMessage("search-message", "Departure and destination must be different.", "error");
+    return;
+  }
 
-    if (budgetText !== "") {
-        const budget = Number(budgetText);
+  if (!journeyDate) {
+    setMessage("search-message", "Please select your journey date.", "error");
+    return;
+  }
 
-        if (!Number.isFinite(budget) || budget < 0) {
-            clearTrainResults("Please enter a valid non-negative budget.");
-            return;
-        }
-    }
+  if (budget && (!Number.isFinite(Number(budget)) || Number(budget) < 0)) {
+    setMessage("search-message", "Enter a valid budget.", "error");
+    return;
+  }
 
-    setSearchLoading(true);
-    clearTrainResults();
-    searchMessage.textContent = "Finding and ranking trains...";
+  const params = new URLSearchParams({
+    source,
+    destination,
+    price_weight: $("priceWeight")?.value || "5",
+    duration_weight: $("durationWeight")?.value || "4",
+    availability_weight: $("availabilityWeight")?.value || "3",
+    timing_weight: $("timingWeight")?.value || "2",
+    preferred_time: $("preferredTime")?.value || "08:00"
+  });
 
-    try {
-        const query = new URLSearchParams({
-            source,
-            destination,
-            ...getRecommendationPreferences()
-        });
+  if (budget) params.set("budget", budget);
 
-        if (budgetText !== "") {
-            query.set("budget", budgetText);
-        }
+  const button = $("search-button");
+  setButtonBusy(button, true, "Searching...");
+  setMessage("search-message", "Searching for available trains...");
+  $("result-count").textContent = "Searching...";
 
-        // The current Flask API does not filter by journey date.
-        const data = await apiRequest(`/api/trains?${query.toString()}`);
+  try {
+    const data = await apiRequest(`/trains?${params.toString()}`);
 
-        if (thisSearch !== searchNumber) return;
+    state.trains = Array.isArray(data.trains) ? data.trains : [];
 
-        if (!Array.isArray(data.trains)) {
-            throw new Error("The trains response has an unexpected format.");
-        }
+    // Keep the chosen date for booking even if the date is not a backend
+    // train-search parameter.
+    state.trains = state.trains.map((train) => ({
+      ...train,
+      _journeyDate: journeyDate
+    }));
 
-        currentTrains = data.trains;
+    renderTrains();
 
-        if (resultCount) {
-            resultCount.textContent =
-                `${currentTrains.length} train${currentTrains.length === 1 ? "" : "s"}`;
-        }
+    setMessage(
+      "search-message",
+      state.trains.length
+        ? `Found ${state.trains.length} train(s) for ${formatDate(journeyDate)}.`
+        : "No trains match this route and budget. Try another route or budget.",
+      state.trains.length ? "success" : ""
+    );
+  } catch (error) {
+    state.trains = [];
+    renderTrains();
 
-        if (currentTrains.length === 0) {
-            searchMessage.textContent =
-                "No trains match your selected route and budget.";
-
-            const empty = makeElement("div", "empty-state");
-            empty.appendChild(makeElement("h3", "", "No matching trains"));
-            empty.appendChild(
-                makeElement("p", "", "Try a different route or increase your budget.")
-            );
-            trainList.appendChild(empty);
-
-            setConnectionStatus(true, "Backend connected");
-            return;
-        }
-
-        const fragment = document.createDocumentFragment();
-
-        currentTrains.forEach((train, index) => {
-            fragment.appendChild(createTrainCard(train, index));
-        });
-
-        trainList.appendChild(fragment);
-
-        const allScored = currentTrains.every(
-            train => Number.isFinite(Number(train.recommendation_score))
-        );
-
-        searchMessage.textContent = allScored
-            ? `Showing ${currentTrains.length} ranked train(s) from ${source} to ${destination}.`
-            : `Showing ${currentTrains.length} train(s).`;
-
-        setConnectionStatus(true, "Backend connected");
-    } catch (error) {
-        if (thisSearch !== searchNumber) return;
-
-        currentTrains = [];
-        clearTrainResults(error.message);
-        setConnectionStatus(false, "Backend unavailable");
-        showToast(error.message, "error");
-    } finally {
-        if (thisSearch === searchNumber) {
-            setSearchLoading(false);
-        }
-    }
+    setMessage("search-message", error.message, "error");
+    $("result-count").textContent = "Search failed";
+  } finally {
+    setButtonBusy(button, false);
+  }
 }
 
-// ---------- Swap stations ----------
+function renderTrains() {
+  const container = $("train-list");
+  if (!container) return;
 
-swapButton?.addEventListener("click", () => {
-    const oldSource = sourceInput.value;
-    sourceInput.value = destinationInput.value;
-    destinationInput.value = oldSource;
+  const count = state.trains.length;
+  $("result-count").textContent = `${count} train${count === 1 ? "" : "s"} found`;
 
-    showToast("Stations swapped.", "info");
-});
+  if (!count) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-illustration" aria-hidden="true">🚉</span>
+        <h3>No matching trains</h3>
+        <p>Try another route or increase your maximum budget.</p>
+      </div>
+    `;
+    return;
+  }
 
-// ---------- Family booking ----------
+  container.innerHTML = state.trains.map((train, index) => {
+    const id = Number(train.id);
+    const fare = Number(train.fare);
+    const seats = Number(train.seats);
+    const duration = Number(train.duration_minutes);
 
-function renderPassengerFields() {
-    if (!passengerCountInput || !passengerDetailsContainer) return;
+    return `
+      <article class="train-card">
+        <div class="train-card-top">
+          <span class="train-number">TRAIN ${escapeHTML(train.number || train.id)}</span>
+          <span class="seat-badge ${seats > 0 ? "available" : "unavailable"}">
+            ${seats > 0 ? `${seats} seats available` : "Sold out"}
+          </span>
+        </div>
 
-    const count = Number(passengerCountInput.value);
+        <h3>${escapeHTML(train.name || "Train")}</h3>
 
-    if (!Number.isInteger(count) || count < 1 || count > 10) return;
+        <div class="train-route">
+          <div>
+            <span class="route-label">FROM</span>
+            <strong>${escapeHTML(train.source)}</strong>
+          </div>
 
-    passengerDetailsContainer.replaceChildren();
+          <div class="route-line" aria-hidden="true">→</div>
 
-    for (let i = 0; i < count; i++) {
-        const section = makeElement("section", "passenger-field");
-        section.appendChild(makeElement("h3", "", `Passenger ${i + 1}`));
+          <div>
+            <span class="route-label">TO</span>
+            <strong>${escapeHTML(train.destination)}</strong>
+          </div>
+        </div>
 
-        // Name
-        const nameLabel = makeElement("label", "", "FULL NAME");
-        nameLabel.htmlFor = `family-name-${i}`;
+        <div class="train-details">
+          <div>
+            <span class="detail-label">Departure</span>
+            <strong>${escapeHTML(train.departure_time || "—")}</strong>
+          </div>
 
-        const nameInput = makeElement("input");
-        nameInput.type = "text";
-        nameInput.id = `family-name-${i}`;
-        nameInput.name = `passenger-name-${i}`;
-        nameInput.minLength = 2;
-        nameInput.maxLength = 100;
-        nameInput.required = true;
-        nameInput.placeholder = "Enter full name";
-        nameInput.autocomplete = "off";
+          <div>
+            <span class="detail-label">Duration</span>
+            <strong>${escapeHTML(formatDuration(duration))}</strong>
+          </div>
 
-        section.appendChild(nameLabel);
-        section.appendChild(nameInput);
+          <div>
+            <span class="detail-label">Fare / person</span>
+            <strong class="train-fare">${escapeHTML(formatCurrency(fare))}</strong>
+          </div>
+        </div>
 
-        // Age
-        const ageLabel = makeElement("label", "", "AGE");
-        ageLabel.htmlFor = `family-age-${i}`;
+        <button
+          type="button"
+          class="primary-button book-train-button"
+          data-train-index="${index}"
+          ${seats <= 0 ? "disabled" : ""}>
+          ${seats > 0 ? "Book this train →" : "No seats available"}
+        </button>
+      </article>
+    `;
+  }).join("");
 
-        const ageInput = makeElement("input");
-        ageInput.type = "number";
-        ageInput.id = `family-age-${i}`;
-        ageInput.name = `passenger-age-${i}`;
-        ageInput.min = 0;
-        ageInput.max = 120;
-        ageInput.step = 1;
-        ageInput.value = "20";
-        ageInput.required = true;
-        ageInput.placeholder = "Enter age";
+  container.querySelectorAll(".book-train-button").forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.trainIndex);
+      const train = state.trains[index];
 
-        section.appendChild(ageLabel);
-        section.appendChild(ageInput);
-
-        // Gender
-        const genderLabel = makeElement("label", "", "GENDER");
-        genderLabel.htmlFor = `family-gender-${i}`;
-
-        const genderSelect = makeElement("select");
-        genderSelect.id = `family-gender-${i}`;
-        genderSelect.name = `passenger-gender-${i}`;
-        genderSelect.required = true;
-
-        ["Male", "Female", "Other", "Prefer not to say"].forEach(gender => {
-            const option = makeElement("option", "", gender);
-            option.value = gender;
-            genderSelect.appendChild(option);
-        });
-
-        section.appendChild(genderLabel);
-        section.appendChild(genderSelect);
-
-        passengerDetailsContainer.appendChild(section);
-    }
-
-    updateFamilyFare();
+      if (train) openBookingDialog(train);
+    });
+  });
 }
 
-function updateFamilyFare() {
-    if (!selectedTrain || !passengerCountInput || !familyFareSummary) return;
-
-    const count = Number(passengerCountInput.value);
-    const total = Number(selectedTrain.fare) * count;
-
-    familyFareSummary.textContent =
-        `${count} passenger(s) × ${formatMoney(selectedTrain.fare)} = ` +
-        `${formatMoney(total)} total`;
-}
+/* -------------------------------------------------------
+   Family booking dialog
+------------------------------------------------------- */
 
 function openBookingDialog(train) {
-    selectedTrain = train;
+  if (!ensureLoggedIn()) return;
 
-    selectedTrainName.textContent =
-        `${train.number ?? ""} ${train.name || "Train"}`.trim();
+  state.selectedTrain = train;
 
-    selectedTrainRoute.textContent =
-        `${train.source} → ${train.destination}`;
+  $("selected-train-name").textContent = train.name || "Selected train";
+  $("selected-train-route").textContent =
+    `${train.source} → ${train.destination} · ${formatDate(train._journeyDate)}`;
 
-    selectedTrainFare.textContent = formatMoney(train.fare);
+  $("selected-train-fare").textContent =
+    `${formatCurrency(train.fare)} per passenger`;
 
-    selectedTrainSummary.hidden = false;
-    selectedTrainPreview.hidden = false;
+  $("selected-train-summary").textContent =
+    `Train ${train.number || train.id}. Enter the details for each passenger.`;
 
-    passengerCountInput.value = "1";
-    renderPassengerFields();
+  $("passenger-count").value = "1";
+  renderPassengerFields();
+  updateFamilyFare();
 
-    if (bookingDialog && typeof bookingDialog.showModal === "function") {
-        bookingDialog.showModal();
-    } else {
-        showToast("Your browser does not support the booking dialog.", "error");
-    }
+  const dialog = $("booking-dialog");
+
+  if (dialog && typeof dialog.showModal === "function") {
+    dialog.showModal();
+  } else if (dialog) {
+    dialog.setAttribute("open", "");
+  }
 }
 
 function closeBookingDialog() {
-    if (bookingDialog?.open) {
-        bookingDialog.close();
-    }
+  const dialog = $("booking-dialog");
+  if (!dialog) return;
 
-    selectedTrain = null;
+  if (typeof dialog.close === "function" && dialog.open) {
+    dialog.close();
+  } else {
+    dialog.removeAttribute("open");
+  }
+
+  state.selectedTrain = null;
 }
 
-closeBookingButton?.addEventListener("click", closeBookingDialog);
+function renderPassengerFields() {
+  const container = $("passenger-details-container");
+  const count = Number($("passenger-count")?.value || 1);
 
-bookingDialog?.addEventListener("click", event => {
-    if (event.target === bookingDialog) {
-        closeBookingDialog();
-    }
-});
+  if (!container) return;
 
-passengerCountInput?.addEventListener("change", renderPassengerFields);
+  const previous = [];
 
-passengerForm?.addEventListener("submit", async event => {
-    event.preventDefault();
+  container.querySelectorAll(".passenger-card").forEach((card) => {
+    previous.push({
+      name: card.querySelector('[name="passenger-name"]')?.value || "",
+      age: card.querySelector('[name="passenger-age"]')?.value || "",
+      gender: card.querySelector('[name="passenger-gender"]')?.value || "Prefer not to say"
+    });
+  });
 
-    if (!selectedTrain) {
-        showToast("Please select a train first.", "error");
-        return;
-    }
+  container.innerHTML = Array.from({ length: count }, (_, index) => {
+    const passenger = previous[index] || {};
 
-    const count = Number(passengerCountInput.value);
-    const passengers = [];
+    return `
+      <fieldset class="passenger-card">
+        <legend>Passenger ${index + 1}</legend>
 
-    for (let i = 0; i < count; i++) {
-        const nameInput = document.getElementById(`family-name-${i}`);
-        const ageInput = document.getElementById(`family-age-${i}`);
-        const genderInput = document.getElementById(`family-gender-${i}`);
+        <div class="form-field">
+          <label for="passenger-name-${index}">FULL NAME</label>
+          <input
+            id="passenger-name-${index}"
+            name="passenger-name"
+            type="text"
+            minlength="2"
+            maxlength="100"
+            autocomplete="off"
+            placeholder="Enter passenger name"
+            value="${escapeHTML(passenger.name || "")}"
+            required>
+        </div>
 
-        if (!nameInput || !ageInput || !genderInput) {
-            showToast("Passenger fields are missing. Reopen the booking form.", "error");
-            return;
-        }
+        <div class="passenger-row">
+          <div class="form-field">
+            <label for="passenger-age-${index}">AGE</label>
+            <input
+              id="passenger-age-${index}"
+              name="passenger-age"
+              type="number"
+              min="0"
+              max="120"
+              value="${escapeHTML(passenger.age ?? "")}"
+              required>
+          </div>
 
-        const name = nameInput.value.trim();
-        const ageText = ageInput.value.trim();
-        const age = Number(ageText);
-        const gender = genderInput.value;
+          <div class="form-field">
+            <label for="passenger-gender-${index}">GENDER</label>
+            <select
+              id="passenger-gender-${index}"
+              name="passenger-gender"
+              required>
+              <option value="Prefer not to say" ${passenger.gender === "Prefer not to say" || !passenger.gender ? "selected" : ""}>Prefer not to say</option>
+              <option value="Male" ${passenger.gender === "Male" ? "selected" : ""}>Male</option>
+              <option value="Female" ${passenger.gender === "Female" ? "selected" : ""}>Female</option>
+              <option value="Other" ${passenger.gender === "Other" ? "selected" : ""}>Other</option>
+            </select>
+          </div>
+        </div>
+      </fieldset>
+    `;
+  }).join("");
 
-        if (name.length < 2 || name.length > 100) {
-            showToast(`Enter a valid name for passenger ${i + 1}.`, "error");
-            nameInput.focus();
-            return;
-        }
-
-        if (
-            ageText === "" ||
-            !Number.isInteger(age) ||
-            age < 0 ||
-            age > 120
-        ) {
-            showToast(`Enter a valid age for passenger ${i + 1}.`, "error");
-            ageInput.focus();
-            return;
-        }
-
-        passengers.push({ name, age, gender });
-    }
-
-    await submitBooking(passengers);
-});
-
-async function submitBooking(passengers) {
-    if (!selectedTrain) {
-        showToast("Please select a train first.", "error");
-        return;
-    }
-
-    setBookingLoading(true);
-
-    try {
-        const data = await apiRequest("/api/bookings", {
-            method: "POST",
-            body: JSON.stringify({
-                train_id: selectedTrain.id,
-                passengers
-            })
-        });
-
-        closeBookingDialog();
-
-        showToast(
-            `${data.message} Total fare: ${formatMoney(data.total_fare)}`,
-            "success"
-        );
-
-        await Promise.allSettled([
-            searchTrains(),
-            loadBookings()
-        ]);
-    } catch (error) {
-        showToast(`Booking failed: ${error.message}`, "error");
-    } finally {
-        setBookingLoading(false);
-    }
+  updateFamilyFare();
 }
 
-// ---------- Booking history ----------
+function updateFamilyFare() {
+  const train = state.selectedTrain;
+  if (!train) return;
 
-function renderBooking(booking) {
-    const card = makeElement("article", "booking-card");
-    const heading = makeElement("div", "booking-card-heading");
+  const count = Number($("passenger-count")?.value || 1);
+  const total = Number(train.fare) * count;
 
-    heading.appendChild(
-        makeElement(
-            "span",
-            "booking-reference",
-            `Booking #${booking.booking_id ?? "—"}`
-        )
-    );
-
-    heading.appendChild(
-        makeElement("span", "booking-status", booking.status || "Unknown")
-    );
-
-    card.appendChild(heading);
-
-    card.appendChild(
-        makeElement("h3", "booking-passenger", booking.passenger_name || "Passenger")
-    );
-
-    card.appendChild(
-        makeElement("p", "booking-train", booking.train_name || "Train details unavailable")
-    );
-
-    if (booking.source || booking.destination) {
-        card.appendChild(
-            makeElement(
-                "p",
-                "booking-route",
-                `${booking.source || "—"} → ${booking.destination || "—"}`
-            )
-        );
-    }
-
-    // Show all passengers for family bookings.
-    if (Array.isArray(booking.passengers) && booking.passengers.length > 0) {
-        const passengerList = makeElement("ul", "booking-passenger-list");
-
-        booking.passengers.forEach((passenger, index) => {
-            const details = [
-                passenger.name || `Passenger ${index + 1}`,
-                passenger.age !== null && passenger.age !== undefined
-                    ? `Age: ${passenger.age}`
-                    : null,
-                passenger.gender || null
-            ].filter(Boolean).join(" · ");
-
-            passengerList.appendChild(makeElement("li", "", details));
-        });
-
-        card.appendChild(passengerList);
-    }
-
-    const totalFare = booking.total_fare ?? booking.fare;
-
-    card.appendChild(
-        makeElement("p", "booking-fare", `Total fare: ${formatMoney(totalFare)}`)
-    );
-
-    if (booking.passenger_count) {
-        card.appendChild(
-            makeElement(
-                "p",
-                "booking-count",
-                `${booking.passenger_count} passenger(s)`
-            )
-        );
-    }
-
-    return card;
+  $("family-fare-summary").textContent =
+    `${count} passenger${count === 1 ? "" : "s"} × ${formatCurrency(train.fare)} = ${formatCurrency(total)} total`;
 }
+
+async function submitBooking(event) {
+  event.preventDefault();
+
+  if (state.busy) return;
+
+  if (!ensureLoggedIn()) return;
+
+  const train = state.selectedTrain;
+
+  if (!train) {
+    showToast("Please select a train first.", "error");
+    return;
+  }
+
+  const form = $("passenger-form");
+
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const passengerCards = [
+    ...$("passenger-details-container").querySelectorAll(".passenger-card")
+  ];
+
+  const passengers = passengerCards.map((card) => ({
+    name: card.querySelector('[name="passenger-name"]').value.trim(),
+    age: Number(card.querySelector('[name="passenger-age"]').value),
+    gender: card.querySelector('[name="passenger-gender"]').value
+  }));
+
+  const seen = new Set();
+
+  for (const passenger of passengers) {
+    const key = `${passenger.name.toLocaleLowerCase().replace(/\s+/g, " ")}|${passenger.age}`;
+
+    if (seen.has(key)) {
+      showToast(
+        `${passenger.name} (age ${passenger.age}) is entered more than once. Please check the passenger list.`,
+        "error"
+      );
+      return;
+    }
+
+    seen.add(key);
+  }
+
+  const journeyDate = train._journeyDate || $("journey-date")?.value;
+
+  if (!journeyDate) {
+    showToast("Please select a journey date.", "error");
+    return;
+  }
+
+  const button = $("confirm-booking");
+  state.busy = true;
+  setButtonBusy(button, true, "Confirming booking...");
+
+  try {
+    const result = await apiRequest("/bookings", {
+      method: "POST",
+      body: JSON.stringify({
+        train_id: Number(train.id),
+        journey_date: journeyDate,
+        passengers
+      })
+    });
+
+    closeBookingDialog();
+
+    showToast(
+      result.message ||
+      `Booking confirmed! Total fare: ${formatCurrency(result.total_fare)}`
+    );
+
+    setMessage(
+      "booking-message",
+      "Booking completed. Refreshing your booking history..."
+    );
+
+    // Search again to display the updated seat count.
+    await searchTrains();
+
+    await loadBookings();
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    state.busy = false;
+    setButtonBusy(button, false);
+  }
+}
+
+/* -------------------------------------------------------
+   Booking history
+------------------------------------------------------- */
 
 async function loadBookings() {
-    if (!bookingMessage || !bookingList) return;
+  if (!ensureLoggedIn()) {
+    setMessage(
+      "booking-message",
+      "Please log in to view your booking history.",
+      "warning"
+    );
 
-    bookingMessage.textContent = "Loading booking history...";
-    bookingList.replaceChildren();
+    $("booking-list").innerHTML = `
+      <div class="empty-state compact">
+        <p>Log in to see your reservations.</p>
+      </div>
+    `;
+    return;
+  }
 
-    if (refreshBookingsButton) {
-        refreshBookingsButton.disabled = true;
-    }
+  const refreshButton = $("refresh-bookings");
+  setButtonBusy(refreshButton, true, "Refreshing...");
 
-    try {
-        const data = await apiRequest("/api/bookings");
+  setMessage("booking-message", "Loading your booking history...");
 
-        if (!Array.isArray(data.bookings)) {
-            throw new Error("The bookings response has an unexpected format.");
-        }
+  try {
+    const data = await apiRequest("/bookings");
 
-        if (data.bookings.length === 0) {
-            bookingMessage.textContent = "No bookings yet.";
+    state.bookings = Array.isArray(data.bookings) ? data.bookings : [];
 
-            const empty = makeElement("div", "empty-state compact");
-            empty.appendChild(
-                makeElement("p", "", "Your bookings will appear here after you book a ticket.")
-            );
+    renderBookings();
 
-            bookingList.appendChild(empty);
-            setConnectionStatus(true, "Backend connected");
-            return;
-        }
-
-        const fragment = document.createDocumentFragment();
-
-        data.bookings.forEach(booking => {
-            fragment.appendChild(renderBooking(booking));
-        });
-
-        bookingList.appendChild(fragment);
-
-        bookingMessage.textContent =
-            `${data.bookings.length} booking${data.bookings.length === 1 ? "" : "s"} found.`;
-
-        setConnectionStatus(true, "Backend connected");
-    } catch (error) {
-        bookingMessage.textContent = `Could not load bookings: ${error.message}`;
-        setConnectionStatus(false, "Backend unavailable");
-    } finally {
-        if (refreshBookingsButton) {
-            refreshBookingsButton.disabled = false;
-        }
-    }
+    setMessage(
+      "booking-message",
+      state.bookings.length
+        ? `${state.bookings.length} booking record(s) found.`
+        : "You have no bookings yet."
+    );
+  } catch (error) {
+    setMessage("booking-message", error.message, "error");
+  } finally {
+    setButtonBusy(refreshButton, false);
+  }
 }
 
-refreshBookingsButton?.addEventListener("click", loadBookings);
+function renderBookings() {
+  const container = $("booking-list");
+  if (!container) return;
 
-// ---------- Default journey date ----------
+  if (!state.bookings.length) {
+    container.innerHTML = `
+      <div class="empty-state compact">
+        <span aria-hidden="true">🎟️</span>
+        <p>No reservations yet. Search for a train to get started.</p>
+      </div>
+    `;
+    return;
+  }
 
-if (dateInput) {
-    const today = new Date();
+  container.innerHTML = state.bookings.map((booking) => {
+    const passengers = Array.isArray(booking.passengers)
+      ? booking.passengers
+      : [];
 
-    const localToday = [
-        today.getFullYear(),
-        String(today.getMonth() + 1).padStart(2, "0"),
-        String(today.getDate()).padStart(2, "0")
-    ].join("-");
+    const passengerHTML = passengers.length
+      ? passengers.map((person) => `
+          <li>
+            ${escapeHTML(person.name)}
+            <span>Age ${escapeHTML(person.age)} · ${escapeHTML(person.gender)}</span>
+          </li>
+        `).join("")
+      : `<li>${escapeHTML(booking.passenger_name || "Passenger details unavailable")}</li>`;
 
-    dateInput.min = localToday;
+    return `
+      <article class="booking-card">
+        <div class="booking-card-header">
+          <span class="booking-reference">BOOKING #${escapeHTML(booking.booking_id)}</span>
+          <span class="booking-status">${escapeHTML(booking.status || "Confirmed")}</span>
+        </div>
 
-    if (!dateInput.value) {
-        dateInput.value = localToday;
-    }
+        <h3>${escapeHTML(booking.train_name || "Train reservation")}</h3>
+
+        <p class="booking-route">
+          ${escapeHTML(booking.source || "")}
+          <span aria-hidden="true">→</span>
+          ${escapeHTML(booking.destination || "")}
+        </p>
+
+        <div class="booking-details">
+          <span>Journey date</span>
+          <strong>${escapeHTML(formatDate(booking.journey_date))}</strong>
+
+          <span>Passengers</span>
+          <strong>${escapeHTML(booking.passenger_count ?? passengers.length)}</strong>
+
+          <span>Total fare</span>
+          <strong>${escapeHTML(formatCurrency(booking.total_fare))}</strong>
+        </div>
+
+        <details class="passenger-list-details">
+          <summary>View passenger details</summary>
+          <ul class="booking-passenger-list">${passengerHTML}</ul>
+        </details>
+      </article>
+    `;
+  }).join("");
 }
 
-// ---------- Connect events ----------
+/* -------------------------------------------------------
+   OS synchronization demonstration
+------------------------------------------------------- */
 
-searchForm?.addEventListener("submit", searchTrains);
+async function runConcurrencyDemo() {
+  const attempts = Number($("sync-attempts")?.value || 10);
+  const seats = Number($("sync-seats")?.value || 5);
 
-// ---------- Initial page load ----------
+  if (!Number.isInteger(attempts) || attempts < 1 || attempts > 50) {
+    setMessage("sync-message", "Requests must be between 1 and 50.", "error");
+    return;
+  }
 
-setConnectionStatus(false, "Connecting to backend...");
-searchTrains();
-loadBookings();
+  if (!Number.isInteger(seats) || seats < 0 || seats > 50) {
+    setMessage("sync-message", "Seats must be between 0 and 50.", "error");
+    return;
+  }
 
-// OS synchronization demonstration
-(() => {
-    const runButton = document.getElementById("sync-run-btn");
+  const button = $("sync-run-btn");
+  setButtonBusy(button, true, "Simulating...");
 
-    // Safe if this script is also used on pages without the demo section.
-    if (!runButton) return;
+  setMessage("sync-message", "Simulating simultaneous booking requests...");
 
-    const attemptsInput = document.getElementById("sync-attempts");
-    const seatsInput = document.getElementById("sync-seats");
-    const message = document.getElementById("sync-message");
-    const totalOutput = document.getElementById("sync-total");
-    const successOutput = document.getElementById("sync-success");
-    const rejectedOutput = document.getElementById("sync-rejected");
-    const remainingOutput = document.getElementById("sync-remaining");
-    const resultsContainer = document.getElementById("sync-request-results");
-
-    runButton.addEventListener("click", async () => {
-        const attempts = Number(attemptsInput.value);
-        const seats = Number(seatsInput.value);
-
-        if (
-            !Number.isInteger(attempts) ||
-            attempts < 1 || attempts > 50 ||
-            !Number.isInteger(seats) ||
-            seats < 0 || seats > 50
-        ) {
-            message.textContent =
-                "Enter requests from 1–50 and seats from 0–50.";
-            return;
-        }
-
-        runButton.disabled = true;
-        message.textContent = "Running concurrent requests...";
-        resultsContainer.replaceChildren();
-
-        try {
-            const url =
-                `http://127.0.0.1:5000/api/demo/concurrency` +
-                `?attempts=${attempts}&seats=${seats}`;
-
-            const response = await fetch(url);
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || "Demo request failed.");
-            }
-
-            totalOutput.textContent = data.total_requests;
-            successOutput.textContent = data.successful_bookings;
-            rejectedOutput.textContent = data.rejected_requests;
-            remainingOutput.textContent = data.remaining_seats;
-
-            message.textContent =
-                `Completed. Real database changed: ${
-                    data.real_database_changed ? "Yes" : "No"
-                }.`;
-
-            data.results.forEach((result) => {
-                const row = document.createElement("div");
-                row.className = "sync-result-row";
-
-                const requestLabel = document.createElement("span");
-                requestLabel.textContent = `Request ${result.request}`;
-
-                const status = document.createElement("strong");
-                status.textContent = result.result;
-                status.className =
-                    result.result === "SUCCESS"
-                        ? "sync-status-success"
-                        : "sync-status-rejected";
-
-                const seatsLabel = document.createElement("span");
-                seatsLabel.textContent =
-                    `Remaining seats: ${result.remaining_seats}`;
-
-                row.append(requestLabel, status, seatsLabel);
-                resultsContainer.appendChild(row);
-            });
-        } catch (error) {
-            message.textContent =
-                `Could not run demo: ${error.message}. ` +
-                "Check that Flask is running on port 5000.";
-        } finally {
-            runButton.disabled = false;
-        }
+  try {
+    const params = new URLSearchParams({
+      attempts: String(attempts),
+      seats: String(seats)
     });
-})();
+
+    const data = await apiRequest(`/demo/concurrency?${params.toString()}`);
+
+    $("sync-total").textContent = data.total_requests ?? "—";
+    $("sync-success").textContent = data.successful_bookings ?? "—";
+    $("sync-rejected").textContent = data.rejected_requests ?? "—";
+    $("sync-remaining").textContent = data.remaining_seats ?? "—";
+
+    const resultsContainer = $("sync-request-results");
+    const results = Array.isArray(data.results) ? data.results : [];
+
+    resultsContainer.innerHTML = `
+      <div class="sync-result-list">
+        ${results.map((result) => `
+          <div class="sync-result-row ${result.result === "SUCCESS" ? "success" : "rejected"}">
+            <span>Request ${escapeHTML(result.request)}</span>
+            <strong>${escapeHTML(result.result)}</strong>
+            <span>Seats left: ${escapeHTML(result.remaining_seats)}</span>
+          </div>
+        `).join("")}
+      </div>
+    `;
+
+    setMessage(
+      "sync-message",
+      `Simulation complete: ${data.successful_bookings} successful, ${data.rejected_requests} rejected. The real database was not changed.`,
+      "success"
+    );
+  } catch (error) {
+    setMessage("sync-message", error.message, "error");
+  } finally {
+    setButtonBusy(button, false);
+  }
+}
+
+/* -------------------------------------------------------
+   Station swapping and backend status
+------------------------------------------------------- */
+
+function swapStations() {
+  const source = $("source");
+  const destination = $("destination");
+
+  if (!source || !destination) return;
+
+  const previousSource = source.value;
+  source.value = destination.value;
+  destination.value = previousSource;
+}
+
+async function checkBackend() {
+  const label = $("connection-label");
+  if (!label) return;
+
+  try {
+    const response = await fetch("http://127.0.0.1:5000/", {
+      method: "GET"
+    });
+
+    if (!response.ok) throw new Error("Backend unavailable");
+
+    label.textContent = "System online";
+  } catch {
+    label.textContent = "Backend offline";
+  }
+}
+
+/* -------------------------------------------------------
+   Initialize the page
+------------------------------------------------------- */
+
+function initializeRailEase() {
+  $("search-form")?.addEventListener("submit", searchTrains);
+
+  $("swap-stations")?.addEventListener("click", swapStations);
+
+  $("passenger-count")?.addEventListener("change", renderPassengerFields);
+
+  $("passenger-details-container")?.addEventListener("input", updateFamilyFare);
+
+  $("passenger-form")?.addEventListener("submit", submitBooking);
+
+  $("close-booking")?.addEventListener("click", closeBookingDialog);
+
+  $("booking-dialog")?.addEventListener("click", (event) => {
+    if (event.target === $("booking-dialog")) {
+      closeBookingDialog();
+    }
+  });
+
+  $("refresh-bookings")?.addEventListener("click", loadBookings);
+
+  $("sync-run-btn")?.addEventListener("click", runConcurrencyDemo);
+
+  checkBackend();
+
+  if (getToken()) {
+    loadBookings();
+  } else {
+    setMessage(
+      "booking-message",
+      "Please log in to view your booking history."
+    );
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", initializeRailEase);
+} else {
+  initializeRailEase();
+}

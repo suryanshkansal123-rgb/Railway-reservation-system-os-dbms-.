@@ -31,7 +31,6 @@
   </header>
 
   <main>
-    <!-- Hero -->
     <section class="hero">
       <div class="hero-copy">
         <span class="eyebrow">YOUR JOURNEY STARTS HERE</span>
@@ -58,7 +57,6 @@
       </div>
     </section>
 
-    <!-- 01: Search form -->
     <section class="search-panel panel" id="search-section">
       <div class="section-heading">
         <div>
@@ -75,8 +73,25 @@
           <div class="input-wrap">
             <span class="input-icon" aria-hidden="true">◉</span>
             <select id="source" name="source" required>
-              <option value="Dehradun">Dehradun</option>
+              <option value="Agra">Agra</option>
+              <option value="Ahmedabad">Ahmedabad</option>
+              <option value="Amritsar">Amritsar</option>
+              <option value="Bareilly">Bareilly</option>
+              <option value="Bhopal">Bhopal</option>
+              <option value="Chandigarh">Chandigarh</option>
+              <option value="Dehradun" selected>Dehradun</option>
               <option value="Delhi">Delhi</option>
+              <option value="Haridwar">Haridwar</option>
+              <option value="Indore">Indore</option>
+              <option value="Jaipur">Jaipur</option>
+              <option value="Kolkata">Kolkata</option>
+              <option value="Lucknow">Lucknow</option>
+              <option value="Ludhiana">Ludhiana</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Prayagraj">Prayagraj</option>
+              <option value="Pune">Pune</option>
+              <option value="Rishikesh">Rishikesh</option>
+              <option value="Varanasi">Varanasi</option>
             </select>
           </div>
         </div>
@@ -93,8 +108,25 @@
           <div class="input-wrap">
             <span class="input-icon" aria-hidden="true">◎</span>
             <select id="destination" name="destination" required>
-              <option value="Delhi">Delhi</option>
+              <option value="Agra">Agra</option>
+              <option value="Ahmedabad">Ahmedabad</option>
+              <option value="Amritsar">Amritsar</option>
+              <option value="Bareilly">Bareilly</option>
+              <option value="Bhopal">Bhopal</option>
+              <option value="Chandigarh">Chandigarh</option>
               <option value="Dehradun">Dehradun</option>
+              <option value="Delhi" selected>Delhi</option>
+              <option value="Haridwar">Haridwar</option>
+              <option value="Indore">Indore</option>
+              <option value="Jaipur">Jaipur</option>
+              <option value="Kolkata">Kolkata</option>
+              <option value="Lucknow">Lucknow</option>
+              <option value="Ludhiana">Ludhiana</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Prayagraj">Prayagraj</option>
+              <option value="Pune">Pune</option>
+              <option value="Rishikesh">Rishikesh</option>
+              <option value="Varanasi">Varanasi</option>
             </select>
           </div>
         </div>
@@ -132,7 +164,6 @@
       </p>
     </section>
 
-    <!-- Personalized recommendations -->
     <section class="panel preferences-panel" id="preferences-section">
       <div class="section-heading">
         <div>
@@ -150,11 +181,7 @@
               <label for="priceWeight">Ticket price</label>
               <output id="priceValue" for="priceWeight">5 / 5</output>
             </div>
-            <input
-              type="range"
-              id="priceWeight"
-              name="price_weight"
-              min="1" max="5" step="1" value="5">
+            <input type="range" id="priceWeight" name="price_weight" min="1" max="5" step="1" value="5">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
@@ -166,11 +193,7 @@
               <label for="durationWeight">Journey duration</label>
               <output id="durationValue" for="durationWeight">4 / 5</output>
             </div>
-            <input
-              type="range"
-              id="durationWeight"
-              name="duration_weight"
-              min="1" max="5" step="1" value="4">
+            <input type="range" id="durationWeight" name="duration_weight" min="1" max="5" step="1" value="4">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
@@ -182,11 +205,7 @@
               <label for="availabilityWeight">Available seats</label>
               <output id="availabilityValue" for="availabilityWeight">3 / 5</output>
             </div>
-            <input
-              type="range"
-              id="availabilityWeight"
-              name="availability_weight"
-              min="1" max="5" step="1" value="3">
+            <input type="range" id="availabilityWeight" name="availability_weight" min="1" max="5" step="1" value="3">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
@@ -198,11 +217,7 @@
               <label for="timingWeight">Departure time</label>
               <output id="timingValue" for="timingWeight">2 / 5</output>
             </div>
-            <input
-              type="range"
-              id="timingWeight"
-              name="timing_weight"
-              min="1" max="5" step="1" value="2">
+            <input type="range" id="timingWeight" name="timing_weight" min="1" max="5" step="1" value="2">
             <div class="range-labels">
               <span>Less important</span>
               <span>Very important</span>
@@ -214,29 +229,25 @@
           <label for="preferredTime">PREFERRED DEPARTURE TIME</label>
           <div class="input-wrap">
             <span class="input-icon" aria-hidden="true">◷</span>
-            <input
-              type="time"
-              id="preferredTime"
-              name="preferred_time"
-              value="08:00">
+            <input type="time" id="preferredTime" name="preferred_time" value="08:00">
           </div>
-          <p class="field-hint">
-            Trains departing closer to this time receive a higher timing score.
-          </p>
+          <p class="field-hint">Trains departing closer to this time receive a higher timing score.</p>
         </div>
 
         <div class="preference-actions">
           <button type="button" id="reset-preferences" class="secondary-button">
             Reset preferences
           </button>
+          <button type="button" id="apply-preferences" class="primary-button">
+            Apply Preferences &amp; Search →
+          </button>
           <p class="field-hint">
-            Your preferences will be applied when you search for trains.
+            Adjust the sliders and preferred departure time, then click the button to rank trains.
           </p>
         </div>
       </form>
     </section>
 
-    <!-- 02: Train results -->
     <section class="results-section" id="results-section">
       <div class="section-heading results-heading">
         <div>
@@ -256,7 +267,6 @@
       </div>
     </section>
 
-    <!-- 03: Booking history -->
     <section class="panel bookings-panel" id="bookings-section">
       <div class="section-heading">
         <div>
@@ -280,7 +290,6 @@
       </div>
     </section>
 
-    <!-- Information strip -->
     <section class="info-strip">
       <div class="info-item">
         <span aria-hidden="true">🔎</span>
@@ -315,20 +324,13 @@
     </footer>
   </main>
 
-  <!-- Family booking dialog -->
   <dialog id="booking-dialog" class="booking-dialog" aria-labelledby="booking-title">
     <form id="passenger-form" class="passenger-form">
-      <button
-        type="button"
-        id="close-booking"
-        class="close-button"
-        aria-label="Close booking form">×</button>
+      <button type="button" id="close-booking" class="close-button" aria-label="Close booking form">×</button>
 
       <span class="eyebrow">COMPLETE YOUR RESERVATION</span>
       <h2 id="booking-title">Passenger details</h2>
-      <p id="selected-train-summary" class="dialog-description">
-        Review your selected train.
-      </p>
+      <p id="selected-train-summary" class="dialog-description">Review your selected train.</p>
 
       <div class="selected-train-preview" id="selected-train-preview">
         <span aria-hidden="true">🚆</span>
@@ -339,7 +341,6 @@
         <strong id="selected-train-fare">₹—</strong>
       </div>
 
-      <!-- Number of passengers -->
       <div class="form-field passenger-field">
         <label for="passenger-count">NUMBER OF PASSENGERS</label>
         <select id="passenger-count" name="passenger-count" required>
@@ -356,17 +357,13 @@
         </select>
       </div>
 
-      <!-- script.js creates each passenger's fields here -->
       <div id="passenger-details-container"></div>
 
-      <!-- Calculated fare summary -->
       <p id="family-fare-summary" class="form-note" aria-live="polite">
         Select the number of passengers to calculate the total fare.
       </p>
 
-      <p class="form-note">
-        Review each passenger's details before confirming your booking.
-      </p>
+      <p class="form-note">Review each passenger's details before confirming your booking.</p>
 
       <button type="submit" id="confirm-booking" class="primary-button">
         Confirm booking <span aria-hidden="true">→</span>
@@ -374,13 +371,8 @@
     </form>
   </dialog>
 
-  <div
-    id="toast-container"
-    class="toast-container"
-    aria-live="polite"
-    aria-atomic="true"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- Recommendation slider controls and journey date -->
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const sliders = [
@@ -429,59 +421,65 @@
       ].join("-");
 
       dateInput.min = localDate;
+
       if (!dateInput.value) {
         dateInput.value = localDate;
       }
+
+      // Apply the selected preferences by running the existing train search.
+      const applyPreferencesButton = document.getElementById("apply-preferences");
+      if (applyPreferencesButton) {
+        applyPreferencesButton.addEventListener("click", () => {
+          document.getElementById("search-form").requestSubmit();
+          document.getElementById("results-section").scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        });
+      }
     });
   </script>
-<!-- OS Synchronization Demonstration -->
-<section id="sync-demo" class="sync-demo">
+
+  <section id="sync-demo" class="sync-demo">
     <h2>OS Synchronization Demo</h2>
     <p>
-        Simulate multiple booking requests competing for a limited
-        number of seats. A lock protects the shared seat counter.
+      Simulate multiple booking requests competing for a limited
+      number of seats. A lock protects the shared seat counter.
     </p>
 
     <div class="sync-controls">
-        <label for="sync-attempts">Concurrent requests</label>
-        <input id="sync-attempts" type="number"
-               min="1" max="50" value="10">
+      <label for="sync-attempts">Concurrent requests</label>
+      <input id="sync-attempts" type="number" min="1" max="50" value="10">
 
-        <label for="sync-seats">Available seats</label>
-        <input id="sync-seats" type="number"
-               min="0" max="50" value="5">
+      <label for="sync-seats">Available seats</label>
+      <input id="sync-seats" type="number" min="0" max="50" value="5">
 
-        <button id="sync-run-btn" type="button">
-            Run Synchronization Demo
-        </button>
+      <button id="sync-run-btn" type="button">Run Synchronization Demo</button>
     </div>
 
-    <p id="sync-message" role="status">
-        Ready to run the demonstration.
-    </p>
+    <p id="sync-message" role="status">Ready to run the demonstration.</p>
 
     <div class="sync-results">
-        <div class="sync-card">
-            <span>Total requests</span>
-            <strong id="sync-total">—</strong>
-        </div>
-        <div class="sync-card">
-            <span>Successful</span>
-            <strong id="sync-success">—</strong>
-        </div>
-        <div class="sync-card">
-            <span>Rejected</span>
-            <strong id="sync-rejected">—</strong>
-        </div>
-        <div class="sync-card">
-            <span>Seats remaining</span>
-            <strong id="sync-remaining">—</strong>
-        </div>
+      <div class="sync-card">
+        <span>Total requests</span>
+        <strong id="sync-total">—</strong>
+      </div>
+      <div class="sync-card">
+        <span>Successful</span>
+        <strong id="sync-success">—</strong>
+      </div>
+      <div class="sync-card">
+        <span>Rejected</span>
+        <strong id="sync-rejected">—</strong>
+      </div>
+      <div class="sync-card">
+        <span>Seats remaining</span>
+        <strong id="sync-remaining">—</strong>
+      </div>
     </div>
 
     <h3>Individual Request Results</h3>
     <div id="sync-request-results"></div>
-</section>
-
+  </section>
 </body>
 </html>
