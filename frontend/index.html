@@ -1,0 +1,670 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101c3a">
+  <meta name="description" content="RailEase railway reservation demo — search trains, explore fares and manage bookings.">
+  <title>RailEase | Railway Reservations</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js?v=booking-window-6m-final" defer></script>
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="RailEase home">
+      <span class="brand-icon" aria-hidden="true">🚆</span>
+      <span class="brand-name">RailEase<small>RAILWAY RESERVATION SYSTEM</small></span>
+    </a>
+
+    <div class="signed-in-user" aria-label="Signed-in user">
+      <span class="signed-in-user-avatar" id="signed-in-user-avatar">G</span>
+      <span class="signed-in-user-details">
+        <small>SIGNED IN AS</small>
+        <strong id="signed-in-user-name">Guest</strong>
+      </span>
+    </div>
+
+    <nav class="navigation" aria-label="Main navigation">
+      <a href="#search-section">Find trains</a>
+      <a href="#results-section">Train results</a>
+      <a href="#bookings-section">My bookings</a>
+    </nav>
+
+    <span class="system-status">
+      <span class="status-dot"></span>
+      <span id="connection-label">Checking system...</span>
+    </span>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">YOUR JOURNEY STARTS HERE</span>
+        <h1>Travel more.<br><span>Worry less.</span></h1>
+        <p>Discover available trains, compare ticket fares and manage your railway reservations in one place.</p>
+
+        <div class="hero-highlights">
+          <span>✓ Easy train search</span>
+          <span>✓ Simple reservations</span>
+          <span>✓ Booking history</span>
+        </div>
+
+        <a href="#search-section" class="hero-cta">
+          Plan your journey <span>↓</span>
+        </a>
+      </div>
+
+      <div class="hero-visual" aria-hidden="true">
+        <div class="visual-orbit orbit-one"></div>
+        <div class="visual-orbit orbit-two"></div>
+        <div class="visual-sun"></div>
+        <div class="visual-train">🚆</div>
+        <div class="visual-route">YOUR NEXT STOP: ADVENTURE</div>
+      </div>
+    </section>
+
+    <section class="search-panel panel" id="search-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">01 / PLAN YOUR TRIP</span>
+          <h2>Where are you headed?</h2>
+          <p>Enter your journey details to explore trains.</p>
+        </div>
+        <span class="section-icon" aria-hidden="true">⌕</span>
+      </div>
+
+      <form id="search-form">
+        <div class="form-field">
+          <label for="source">FROM STATION</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◉</span>
+            <select id="source" name="source" required>
+              <option value="Agra">Agra</option>
+              <option value="Ahmedabad">Ahmedabad</option>
+              <option value="Amritsar">Amritsar</option>
+              <option value="Bareilly">Bareilly</option>
+              <option value="Bhopal">Bhopal</option>
+              <option value="Chandigarh">Chandigarh</option>
+              <option value="Dehradun" selected>Dehradun</option>
+              <option value="Delhi">Delhi</option>
+              <option value="Haridwar">Haridwar</option>
+              <option value="Indore">Indore</option>
+              <option value="Jaipur">Jaipur</option>
+              <option value="Kolkata">Kolkata</option>
+              <option value="Lucknow">Lucknow</option>
+              <option value="Ludhiana">Ludhiana</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Prayagraj">Prayagraj</option>
+              <option value="Pune">Pune</option>
+              <option value="Rishikesh">Rishikesh</option>
+              <option value="Varanasi">Varanasi</option>
+            </select>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          id="swap-stations"
+          class="swap-button"
+          aria-label="Swap departure and destination stations"
+          title="Swap stations">⇄</button>
+
+        <div class="form-field">
+          <label for="destination">TO STATION</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◎</span>
+            <select id="destination" name="destination" required>
+              <option value="Agra">Agra</option>
+              <option value="Ahmedabad">Ahmedabad</option>
+              <option value="Amritsar">Amritsar</option>
+              <option value="Bareilly">Bareilly</option>
+              <option value="Bhopal">Bhopal</option>
+              <option value="Chandigarh">Chandigarh</option>
+              <option value="Dehradun">Dehradun</option>
+              <option value="Delhi" selected>Delhi</option>
+              <option value="Haridwar">Haridwar</option>
+              <option value="Indore">Indore</option>
+              <option value="Jaipur">Jaipur</option>
+              <option value="Kolkata">Kolkata</option>
+              <option value="Lucknow">Lucknow</option>
+              <option value="Ludhiana">Ludhiana</option>
+              <option value="Mumbai">Mumbai</option>
+              <option value="Prayagraj">Prayagraj</option>
+              <option value="Pune">Pune</option>
+              <option value="Rishikesh">Rishikesh</option>
+              <option value="Varanasi">Varanasi</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="journey-date">JOURNEY DATE</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">▦</span>
+            <input id="journey-date" name="journey-date" type="text" placeholder="Select journey date" autocomplete="off" readonly required aria-haspopup="dialog" aria-expanded="false">
+            <div id="journey-calendar" class="journey-calendar" role="dialog" aria-label="Choose journey date" hidden>
+              <div class="calendar-heading">
+                <button type="button" id="calendar-prev" aria-label="Previous month">‹</button>
+                <strong id="calendar-month-label"></strong>
+                <button type="button" id="calendar-next" aria-label="Next month">›</button>
+              </div>
+              <div class="calendar-grid calendar-weekdays" aria-hidden="true">
+                <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+              </div>
+              <div id="calendar-days" class="calendar-grid calendar-days"></div>
+              <div class="calendar-footer"><button type="button" id="calendar-today">Today</button></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-field">
+          <label for="budget">MAXIMUM BUDGET (₹)</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">₹</span>
+            <input
+              id="budget"
+              name="budget"
+              type="number"
+              min="0"
+              step="1"
+              placeholder="e.g. 600">
+          </div>
+        </div>
+
+        <button type="submit" id="search-button" class="primary-button">
+          <span>Search trains</span>
+          <span aria-hidden="true">→</span>
+        </button>
+      </form>
+
+      <p id="search-message" class="message" role="status" aria-live="polite">
+        Choose your stations to get started.
+      </p>
+    </section>
+
+    <section class="panel preferences-panel" id="preferences-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">PERSONALIZE YOUR RESULTS</span>
+          <h2>What matters most to you?</h2>
+          <p>Adjust the importance of each factor to rank eligible trains.</p>
+        </div>
+        <span class="section-icon" aria-hidden="true">⚖</span>
+      </div>
+
+      <form id="preferences-form">
+        <div class="preference-grid">
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="priceWeight">Ticket price</label>
+              <output id="priceValue" for="priceWeight">5 / 5</output>
+            </div>
+            <input type="range" id="priceWeight" name="price_weight" min="1" max="5" step="1" value="5">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="durationWeight">Journey duration</label>
+              <output id="durationValue" for="durationWeight">4 / 5</output>
+            </div>
+            <input type="range" id="durationWeight" name="duration_weight" min="1" max="5" step="1" value="4">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="availabilityWeight">Available seats</label>
+              <output id="availabilityValue" for="availabilityWeight">3 / 5</output>
+            </div>
+            <input type="range" id="availabilityWeight" name="availability_weight" min="1" max="5" step="1" value="3">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+
+          <div class="preference-item">
+            <div class="preference-heading">
+              <label for="timingWeight">Departure time</label>
+              <output id="timingValue" for="timingWeight">2 / 5</output>
+            </div>
+            <input type="range" id="timingWeight" name="timing_weight" min="1" max="5" step="1" value="2">
+            <div class="range-labels">
+              <span>Less important</span>
+              <span>Very important</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-field preferred-time-field">
+          <label for="preferredTime">PREFERRED DEPARTURE TIME</label>
+          <div class="input-wrap">
+            <span class="input-icon" aria-hidden="true">◷</span>
+            <input type="time" id="preferredTime" name="preferred_time" value="08:00">
+          </div>
+          <p class="field-hint">Trains departing closer to this time receive a higher timing score.</p>
+        </div>
+
+        <div class="preference-actions">
+          <button type="button" id="reset-preferences" class="secondary-button">
+            Reset preferences
+          </button>
+          <button type="button" id="apply-preferences" class="primary-button">
+            Apply Preferences &amp; Search →
+          </button>
+          <p class="field-hint">
+            Adjust the sliders and preferred departure time, then click the button to rank trains.
+          </p>
+        </div>
+      </form>
+    </section>
+
+    <section class="results-section" id="results-section">
+      <div class="section-heading results-heading">
+        <div>
+          <span class="eyebrow">02 / EXPLORE YOUR OPTIONS</span>
+          <h2>Recommended trains</h2>
+          <p>Trains are ranked using your selected preferences.</p>
+        </div>
+        <span id="result-count" class="result-count">Waiting for search</span>
+      </div>
+
+      <div id="train-list" class="train-grid" aria-live="polite">
+        <div class="empty-state">
+          <span class="empty-illustration" aria-hidden="true">🚉</span>
+          <h3>Your next journey is one search away</h3>
+          <p>Select your departure and destination stations above.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel wallet-panel" id="wallet-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">YOUR REFUNDS</span>
+          <h2>RailEase wallet</h2>
+          <p>Cancellation refunds are credited here. Cancellation refund policy: 60% of the paid fare.</p>
+        </div>
+        <button type="button" id="refresh-wallet" class="secondary-button">Refresh wallet</button>
+      </div>
+      <div class="wallet-balance-card">
+        <span>Available wallet balance</span>
+        <strong id="wallet-balance">₹0.00</strong>
+      </div>
+      <p id="wallet-message" class="message" role="status" aria-live="polite">Log in to view your wallet.</p>
+    </section>
+
+    <section class="panel bookings-panel" id="bookings-section">
+      <div class="section-heading">
+        <div>
+          <span class="eyebrow">03 / YOUR TRAVEL ACTIVITY</span>
+          <h2>Booking history</h2>
+          <p>View reservations recorded by your connected system.</p>
+        </div>
+        <button type="button" id="refresh-bookings" class="secondary-button">
+          <span aria-hidden="true">↻</span> Refresh
+        </button>
+      </div>
+
+      <p id="booking-message" class="message" role="status" aria-live="polite">
+        Loading booking history...
+      </p>
+
+      <div id="booking-list" class="booking-grid">
+        <div class="empty-state compact">
+          <p>Your booking history will appear here.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="info-strip">
+      <div class="info-item">
+        <span aria-hidden="true">🔎</span>
+        <div>
+          <strong>Find your train</strong>
+          <p>Search by station and route.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span aria-hidden="true">🎟️</span>
+        <div>
+          <strong>Book with ease</strong>
+          <p>Enter passenger details to reserve.</p>
+        </div>
+      </div>
+      <div class="info-item">
+        <span aria-hidden="true">📋</span>
+        <div>
+          <strong>Track reservations</strong>
+          <p>Review saved bookings.</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <a class="footer-brand" href="#">RailEase 🚆</a>
+      <p>Railway Reservation System · Academic project</p>
+      <small>
+        Train availability and reservations depend on the connected project backend.
+        This is not an official railway booking service.
+      </small>
+    </footer>
+  </main>
+
+  <dialog id="booking-dialog" class="booking-dialog" aria-labelledby="booking-title">
+    <form id="passenger-form" class="passenger-form">
+      <button type="button" id="close-booking" class="close-button" aria-label="Close booking form">×</button>
+
+      <span class="eyebrow">COMPLETE YOUR RESERVATION</span>
+      <h2 id="booking-title">Passenger details</h2>
+      <p id="selected-train-summary" class="dialog-description">Review your selected train.</p>
+
+      <div class="selected-train-preview" id="selected-train-preview">
+        <span aria-hidden="true">🚆</span>
+        <div>
+          <strong id="selected-train-name">Selected train</strong>
+          <small id="selected-train-route">Journey route</small>
+        </div>
+        <strong id="selected-train-fare">₹—</strong>
+      </div>
+
+      <div class="form-field passenger-field">
+        <label for="passenger-count">NUMBER OF PASSENGERS</label>
+        <select id="passenger-count" name="passenger-count" required>
+          <option value="1">1 Passenger</option>
+          <option value="2">2 Passengers</option>
+          <option value="3">3 Passengers</option>
+          <option value="4">4 Passengers</option>
+          <option value="5">5 Passengers</option>
+          <option value="6">6 Passengers</option>
+          <option value="7">7 Passengers</option>
+          <option value="8">8 Passengers</option>
+          <option value="9">9 Passengers</option>
+          <option value="10">10 Passengers</option>
+        </select>
+      </div>
+
+      <section class="seat-map-panel" aria-label="Live seat availability">
+        <div class="seat-map-heading">
+          <div><strong>Live seat availability</strong><small>Refreshes automatically while you book</small></div>
+          <button type="button" id="refresh-seat-map" class="secondary-button">Refresh</button>
+        </div>
+        <div class="seat-legend">
+          <span><i class="seat-dot available"></i> Available</span>
+          <span><i class="seat-dot booked"></i> Booked</span>
+          <span><i class="seat-dot locked"></i> Temporarily locked</span>
+        </div>
+        <p id="seat-map-counts" class="form-note">Loading seats…</p>
+        <p class="form-note">Choose seats in the coach layout. Window seats are marked W. Select one seat per passenger.</p>
+        <p id="selected-seat-summary" class="form-note">Selected seats: 0</p>
+        <div class="coach-layout-wrap"><div class="coach-label">COACH SEAT PLAN · FRONT OF TRAIN ↑</div><div id="live-seat-map" class="live-seat-map" aria-live="polite"></div></div>
+      </section>
+
+      <div id="passenger-details-container"></div>
+
+      <p id="family-fare-summary" class="form-note" aria-live="polite">
+        Select the number of passengers to calculate the total fare.
+      </p>
+
+      <p class="form-note">Review each passenger's details before confirming your booking.</p>
+      <label class="wallet-use-option" style="display:flex;gap:10px;align-items:center;margin:14px 0;padding:12px;border:1px solid #dce4f2;border-radius:12px">
+        <input type="checkbox" id="use-wallet" checked>
+        <span><strong>Use my RailEase wallet balance</strong><small id="wallet-use-hint" style="display:block">Wallet balance will be applied first; only the remaining amount needs QR payment.</small></span>
+      </label>
+
+      <button type="submit" id="confirm-booking" class="primary-button">
+        Confirm booking <span aria-hidden="true">→</span>
+      </button>
+    </form>
+  </dialog>
+
+
+  <dialog id="payment-dialog" class="booking-dialog" aria-labelledby="payment-title">
+    <form id="payment-form" class="passenger-form">
+      <span class="eyebrow">SIMULATED PAYMENT</span>
+      <h2 id="payment-title">Complete your payment</h2>
+      <p id="payment-summary" class="dialog-description">Review the amount before continuing.</p>
+      <p id="payment-countdown" class="form-note" role="timer" aria-live="off">Time remaining: 02:00</p>
+      <p class="form-note">Your selected seats are temporarily locked for 2 minutes. If time runs out, the lock is released automatically.</p>
+      <div id="demo-qr-panel" style="text-align:center;padding:14px;border:1px solid #dce4f2;border-radius:14px;margin:12px 0">
+        <p><strong>Scan with your phone</strong></p>
+        <div id="demo-qr-code" style="display:inline-block;background:#fff;padding:12px;min-width:220px;min-height:220px"></div>
+        <p class="form-note">Connect phone and laptop to the same Wi-Fi, scan the QR, then approve the demo payment on your phone.</p>
+        <p id="demo-qr-link" class="form-note" style="overflow-wrap:anywhere"></p>
+      </div>
+      <p class="form-note">Classroom simulation only: no real UPI transaction or money transfer occurs.</p>
+      <div class="payment-action-row">
+        <button type="button" id="refresh-demo-qr" class="secondary-button">Refresh QR</button>
+        <button type="button" id="cancel-pending-payment" class="secondary-button cancel-payment-button">Cancel booking</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const sliders = [
+        ["priceWeight", "priceValue"],
+        ["durationWeight", "durationValue"],
+        ["availabilityWeight", "availabilityValue"],
+        ["timingWeight", "timingValue"]
+      ];
+
+      sliders.forEach(([sliderId, outputId]) => {
+        const slider = document.getElementById(sliderId);
+        const output = document.getElementById(outputId);
+
+        const updateOutput = () => {
+          output.value = `${slider.value} / 5`;
+          output.textContent = `${slider.value} / 5`;
+        };
+
+        slider.addEventListener("input", updateOutput);
+        updateOutput();
+      });
+
+      document.getElementById("reset-preferences").addEventListener("click", () => {
+        const defaults = {
+          priceWeight: 5,
+          durationWeight: 4,
+          availabilityWeight: 3,
+          timingWeight: 2
+        };
+
+        Object.entries(defaults).forEach(([id, value]) => {
+          document.getElementById(id).value = value;
+          document.getElementById(id).dispatchEvent(new Event("input"));
+        });
+
+        document.getElementById("preferredTime").value = "08:00";
+      });
+
+      const dateInput = document.getElementById("journey-date");
+      const calendar = document.getElementById("journey-calendar");
+      const calendarDays = document.getElementById("calendar-days");
+      const monthLabel = document.getElementById("calendar-month-label");
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      let visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      // Strict booking window: local today through the same calendar date six months ahead.
+      // Clamp month-end dates (e.g. Aug 31 -> Feb 28/29) instead of rolling into another month.
+      const targetMonthFirst = new Date(today.getFullYear(), today.getMonth() + 6, 1);
+      const lastDayOfTargetMonth = new Date(targetMonthFirst.getFullYear(), targetMonthFirst.getMonth() + 1, 0).getDate();
+      const maxBookingDate = new Date(targetMonthFirst.getFullYear(), targetMonthFirst.getMonth(), Math.min(today.getDate(), lastDayOfTargetMonth));
+      const maxBookingMonth = new Date(maxBookingDate.getFullYear(), maxBookingDate.getMonth(), 1);
+
+      const toISODate = (d) => [d.getFullYear(), String(d.getMonth() + 1).padStart(2, "0"), String(d.getDate()).padStart(2, "0")].join("-");
+      const todayISO = toISODate(today);
+      const maxBookingISO = toISODate(maxBookingDate);
+      let selectedDate = dateInput.value ? new Date(dateInput.value + "T00:00:00") : today;
+      if (Number.isNaN(selectedDate.getTime()) || toISODate(selectedDate) < todayISO || toISODate(selectedDate) > maxBookingISO) {
+        selectedDate = today;
+      }
+      dateInput.value = toISODate(selectedDate);
+      dateInput.dataset.isoDate = toISODate(selectedDate);
+
+      function renderJourneyCalendar() {
+        const year = visibleMonth.getFullYear();
+        const month = visibleMonth.getMonth();
+        monthLabel.textContent = visibleMonth.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+        calendarDays.innerHTML = "";
+        // Blank weekday cells keep the correct weekday alignment; no dates from
+        // the previous or following month are rendered in this month's grid.
+        for (let blank = 0; blank < new Date(year, month, 1).getDay(); blank++) {
+          const spacer = document.createElement("span");
+          spacer.className = "calendar-empty";
+          calendarDays.appendChild(spacer);
+        }
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        for (let day = 1; day <= daysInMonth; day++) {
+          const d = new Date(year, month, day);
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "calendar-day";
+          button.textContent = String(day);
+          button.disabled = d < today || d > maxBookingDate;
+          const iso = toISODate(d);
+          if (iso === dateInput.dataset.isoDate) button.classList.add("selected");
+          if (iso === toISODate(today)) button.classList.add("today");
+          button.addEventListener("click", () => {
+            const freshToday = new Date();
+            freshToday.setHours(0, 0, 0, 0);
+            const freshTargetMonth = new Date(freshToday.getFullYear(), freshToday.getMonth() + 6, 1);
+            const freshMaxDay = new Date(freshTargetMonth.getFullYear(), freshTargetMonth.getMonth() + 1, 0).getDate();
+            const freshMaxDate = new Date(freshTargetMonth.getFullYear(), freshTargetMonth.getMonth(), Math.min(freshToday.getDate(), freshMaxDay));
+            if (d < freshToday || d > freshMaxDate) return;
+            dateInput.value = iso;
+            dateInput.dataset.isoDate = iso;
+            dateInput.dispatchEvent(new Event("change", { bubbles: true }));
+            dateInput.value = iso;
+            calendar.hidden = true;
+            dateInput.setAttribute("aria-expanded", "false");
+            renderJourneyCalendar();
+          });
+          calendarDays.appendChild(button);
+        }
+        document.getElementById("calendar-prev").disabled = year === today.getFullYear() && month === today.getMonth();
+        document.getElementById("calendar-next").disabled = year > maxBookingMonth.getFullYear() || (year === maxBookingMonth.getFullYear() && month >= maxBookingMonth.getMonth());
+      }
+
+      dateInput.addEventListener("click", () => {
+        const current = new Date(dateInput.dataset.isoDate + "T00:00:00");
+        visibleMonth = new Date(current.getFullYear(), current.getMonth(), 1);
+        renderJourneyCalendar();
+        calendar.hidden = !calendar.hidden;
+        dateInput.setAttribute("aria-expanded", String(!calendar.hidden));
+      });
+      document.getElementById("calendar-prev").addEventListener("click", () => {
+        visibleMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() - 1, 1);
+        renderJourneyCalendar();
+      });
+      document.getElementById("calendar-next").addEventListener("click", () => {
+        const nextMonth = new Date(visibleMonth.getFullYear(), visibleMonth.getMonth() + 1, 1);
+        if (nextMonth <= maxBookingMonth) {
+          visibleMonth = nextMonth;
+          renderJourneyCalendar();
+        }
+      });
+      document.getElementById("calendar-today").addEventListener("click", () => {
+        dateInput.value = toISODate(today);
+        dateInput.dataset.isoDate = dateInput.value;
+        visibleMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        calendar.hidden = true;
+        dateInput.setAttribute("aria-expanded", "false");
+        renderJourneyCalendar();
+      });
+      document.addEventListener("click", (event) => {
+        if (!calendar.contains(event.target) && event.target !== dateInput) {
+          calendar.hidden = true;
+          dateInput.setAttribute("aria-expanded", "false");
+        }
+      });
+      renderJourneyCalendar();
+
+      // Apply the selected preferences by running the existing train search.
+      const applyPreferencesButton = document.getElementById("apply-preferences");
+      if (applyPreferencesButton) {
+        applyPreferencesButton.addEventListener("click", () => {
+          document.getElementById("search-form").requestSubmit();
+          document.getElementById("results-section").scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+          });
+        });
+      }
+    });
+  </script>
+
+  <section id="sync-demo" class="sync-demo">
+    <h2>OS Synchronization Demo</h2>
+    <p>
+      Simulate multiple booking requests competing for a limited
+      number of seats. A lock protects the shared seat counter.
+    </p>
+
+    <div class="sync-controls">
+      <label for="sync-attempts">Concurrent requests</label>
+      <input id="sync-attempts" type="number" min="1" max="50" value="10">
+
+      <label for="sync-seats">Available seats</label>
+      <input id="sync-seats" type="number" min="0" max="50" value="5">
+
+      <button id="sync-run-btn" type="button">Run Synchronization Demo</button>
+    </div>
+
+    <p id="sync-message" role="status">Ready to run the demonstration.</p>
+
+    <div class="sync-results">
+      <div class="sync-card">
+        <span>Total requests</span>
+        <strong id="sync-total">—</strong>
+      </div>
+      <div class="sync-card">
+        <span>Successful</span>
+        <strong id="sync-success">—</strong>
+      </div>
+      <div class="sync-card">
+        <span>Rejected</span>
+        <strong id="sync-rejected">—</strong>
+      </div>
+      <div class="sync-card">
+        <span>Seats remaining</span>
+        <strong id="sync-remaining">—</strong>
+      </div>
+    </div>
+
+    <h3>Individual Request Results</h3>
+    <div id="sync-request-results"></div>
+  </section>
+
+  <section id="priority-demo" class="sync-demo">
+    <h2>Priority-Based Seat Allocation</h2>
+    <p>Requests are processed High → Medium → Low. Requests with equal priority follow FCFS order. This is a simulation and does not change real train inventory.</p>
+    <div class="sync-controls">
+      <label for="priority-seats">Available seats</label>
+      <input id="priority-seats" type="number" min="0" max="50" value="5">
+      <label for="priority-count">Number of requests</label>
+      <select id="priority-count">
+        <option value="3">3 requests</option>
+        <option value="5" selected>5 requests</option>
+        <option value="10">10 requests</option>
+      </select>
+      <div id="priority-request-inputs"></div>
+      <button id="priority-run-btn" type="button">Run Priority Allocation</button>
+    </div>
+    <p id="priority-message" role="status">Ready to run the priority demonstration.</p>
+    <div id="priority-results"></div>
+  </section>
+</body>
+</html>

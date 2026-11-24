@@ -1,0 +1,14 @@
+RailEase wallet update
+
+Changes:
+- Older confirmed bookings with payment_status Paid can now be cancelled.
+- Cancellation credits 60% of original booking fare to the user's wallet.
+- Booking form includes an option to use wallet balance first.
+- Wallet amount is debited when a temporary booking hold is created.
+- Remaining amount is shown in the phone QR demo payment.
+- If QR payment fails or the 2-minute hold expires, wallet funds used for that booking are restored.
+- If wallet covers the full fare, booking confirms without a QR payment.
+- Wallet debits/credits are recorded in wallet_transactions.
+
+Existing SQLite databases are migrated automatically when the backend starts.
+This is an in-app demo wallet; no actual bank or UPI money is moved.

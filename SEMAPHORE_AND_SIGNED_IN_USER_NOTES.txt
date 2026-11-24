@@ -1,0 +1,19 @@
+RailEase update notes
+=====================
+
+1. Added a signed-in user chip on the left side of the top navigation. It reads the
+   railwayUser object saved by the existing login flow and displays the user's name.
+2. Added a process-local per-seat threading.Lock around seat booking, payment confirmation,
+   and cancellation database critical sections. The existing SQLite BEGIN IMMEDIATE
+   transactions are retained; they continue to protect writes across processes.
+3. Changed the concurrency demo to use per-seat threading.Lock rather than Lock.
+4. Frontend script.js, auth.js, and backend health check now derive the API host from
+   window.location.hostname, so opening the frontend through the laptop's current IP
+   automatically targets that same host on port 5000.
+5. CORS is open for /api/* for local phone/laptop demonstrations so hotspot IP changes
+   do not require editing an allowlist. This is development-only and should not be
+   used for a public production deployment.
+
+Run frontend on port 5500 and Flask on port 5000 as before.
+
+Updated synchronization: no global semaphore is used. Booking requests acquire locks keyed by (train_id, journey_date, seat_number), so the same seat is protected independently. SQLite BEGIN IMMEDIATE still serializes database writes, including requests for different seats.
